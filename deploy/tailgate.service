@@ -1,0 +1,15 @@
+[Unit]
+Description=Tailgate OpenAI-compatible AI gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/tailgate
+ExecStart=/usr/bin/node dist/index.js
+EnvironmentFile=/opt/tailgate/.env
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
