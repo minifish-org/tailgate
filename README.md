@@ -20,8 +20,8 @@ tailgate is not an OpenRouter replacement. OpenRouter handles the public model m
 - `POST /v1/audio/transcriptions`
 - streaming chat passthrough
 - local / DeepSeek / OpenRouter providers
-- concrete model IDs and auto routes
-- local `max_concurrency=1` protection for auto routes
+- concrete model IDs and price-tier routes
+- local `max_concurrency=1` protection for tier routes
 - in-memory health and runtime state
 - optional OpenRouter model metadata and price sync
 - authenticated `/tailgate/health` and `/tailgate/config`
@@ -37,7 +37,7 @@ base_url = http://lightsail-tailscale-name:11435/v1
 api_key = <ROUTER_API_KEY>
 ```
 
-tailgate validates `Authorization: Bearer <ROUTER_API_KEY>`, selects a concrete model or auto route, replaces `model` with the provider's upstream model name, and forwards the request with the provider key from server environment variables.
+tailgate validates `Authorization: Bearer <ROUTER_API_KEY>`, selects a concrete model or price-tier route, replaces `model` with the provider's upstream model name, and forwards the request with the provider key from server environment variables.
 
 Provider keys are never sent by clients and are not logged.
 
@@ -97,25 +97,24 @@ Important fields:
 - `server.host`: listen address. Use the Lightsail Tailscale IP to bind only to Tailscale.
 - `server.port`: listen port.
 - `server.request_timeout_ms`: upstream timeout.
-- `server.fallback_max_attempts`: max candidates tried for auto routes.
+- `server.fallback_max_attempts`: max candidates tried for tier routes.
 - `models.*.upstream_model`: model name sent to the provider.
 - `models.*.api_key_env`: environment variable containing that provider key.
 - `models.*.endpoint`: `chat`, `embeddings`, `audio_speech`, or `audio_transcriptions`.
-- `models.*.max_concurrency`: auto routes skip the model when busy.
-- `routing.latency`: global threshold filters for built-in routes.
+- `models.*.max_concurrency`: tier routes skip the model when busy.
+- `routing.latency`: global threshold filters for built-in tier routes.
 
 Recommended route meanings:
 
-- `private/chat`: private chat only.
-- `private/embedding`: private embeddings only.
-- `private/tts`: private TTS only.
-- `private/asr`: private ASR only.
-- `auto/chat`: automatic chat, local or external.
-- `auto/embedding`: automatic embeddings, local or external.
-- `auto/tts`: automatic TTS, local or external.
-- `auto/asr`: automatic ASR, local or external.
+- `local/chat`: concrete local chat model.
+- `local/embedding`: concrete local embedding model.
+- `local/tts`: concrete local TTS model.
+- `local/asr`: concrete local ASR model.
+- `free/chat`: select a free chat model.
+- `standard/chat`: select a standard-priced chat model.
+- `premium/chat`: select a premium-priced chat model.
 
-Auto routing uses hard filtering, then dynamic provider price when available. Without dynamic pricing, it uses the simple built-in provider order: local, DeepSeek, then OpenRouter. Ties use lower network latency.
+The same price-tier pattern exists for `embedding`, `tts`, and `asr`: `free/embedding`, `standard/embedding`, `premium/embedding`, and so on. Tier routing uses hard filtering, then provider price when available. Without dynamic pricing, tailgate treats local as `free`, DeepSeek as `standard`, and most OpenRouter models as `standard` unless dynamic sync or the model ID marks them differently.
 
 ## Price Sync
 
@@ -299,22 +298,31 @@ curl -s "$TAILGATE_URL/chat/completions" \
   -d '{"model":"local/chat","messages":[{"role":"user","content":"Reply with only: ok"}]}'
 ```
 
-Private chat:
+Free-tier chat:
 
 ```bash
 curl -s "$TAILGATE_URL/chat/completions" \
   -H "Authorization: Bearer $ROUTER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"private/chat","messages":[{"role":"user","content":"Reply with only: ok"}]}'
+  -d '{"model":"free/chat","messages":[{"role":"user","content":"Reply with only: ok"}]}'
 ```
 
-Auto chat:
+Standard-tier chat:
 
 ```bash
 curl -s "$TAILGATE_URL/chat/completions" \
   -H "Authorization: Bearer $ROUTER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"auto/chat","messages":[{"role":"user","content":"Write one short TypeScript tip."}]}'
+  -d '{"model":"standard/chat","messages":[{"role":"user","content":"Write one short TypeScript tip."}]}'
+```
+
+Premium-tier chat:
+
+```bash
+curl -s "$TAILGATE_URL/chat/completions" \
+  -H "Authorization: Bearer $ROUTER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"premium/chat","messages":[{"role":"user","content":"Write one short TypeScript tip."}]}'
 ```
 
 Streaming chat:
@@ -335,13 +343,13 @@ curl -s "$TAILGATE_URL/embeddings" \
   -d '{"model":"local/embedding","input":"hello world"}'
 ```
 
-Auto embeddings:
+Free-tier embeddings:
 
 ```bash
 curl -s "$TAILGATE_URL/embeddings" \
   -H "Authorization: Bearer $ROUTER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"auto/embedding","input":"hello world"}'
+  -d '{"model":"free/embedding","input":"hello world"}'
 ```
 
 TTS:
@@ -354,13 +362,13 @@ curl -s "$TAILGATE_URL/audio/speech" \
   --output speech.wav
 ```
 
-Auto TTS:
+Free-tier TTS:
 
 ```bash
 curl -s "$TAILGATE_URL/audio/speech" \
   -H "Authorization: Bearer $ROUTER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"auto/tts","input":"hello from tailgate","voice":"default","response_format":"wav"}' \
+  -d '{"model":"free/tts","input":"hello from tailgate","voice":"default","response_format":"wav"}' \
   --output speech.wav
 ```
 
@@ -373,12 +381,12 @@ curl -s "$TAILGATE_URL/audio/transcriptions" \
   -F file=@speech.wav
 ```
 
-Auto ASR:
+Free-tier ASR:
 
 ```bash
 curl -s "$TAILGATE_URL/audio/transcriptions" \
   -H "Authorization: Bearer $ROUTER_API_KEY" \
-  -F model=auto/asr \
+  -F model=free/asr \
   -F file=@speech.wav
 ```
 

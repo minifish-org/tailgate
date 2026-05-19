@@ -57,6 +57,7 @@ export interface RoutingConfig {
 export interface RouteConfig {
   endpoint: Endpoint;
   require_private?: boolean;
+  cost_tier?: CostTier;
   latency?: RouteLatencyConfig;
 }
 

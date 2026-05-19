@@ -1,6 +1,6 @@
 import { GatewayError } from "./errors.js";
 import { HealthRegistry } from "./health.js";
-import { AppConfig, Endpoint, ModelCatalog, OpenAIJsonBody, RouteConfig, SelectedModel } from "./types.js";
+import { AppConfig, CostTier, Endpoint, ModelCatalog, ModelConfig, OpenAIJsonBody, RouteConfig, SelectedModel } from "./types.js";
 
 export function resolveModel(config: AppConfig, health: HealthRegistry, requestedModel: string, catalog?: ModelCatalog): SelectedModel {
   const directModel = catalog?.getModel(requestedModel) ?? (config.models[requestedModel] ? { name: requestedModel, config: config.models[requestedModel] } : undefined);
@@ -43,6 +43,7 @@ function selectAutoModels(config: AppConfig, health: HealthRegistry, routeName: 
   const candidates = entries
     .filter(([, model]) => model.endpoint === route.endpoint)
     .filter(([, model]) => !route.require_private || model.provider === "local")
+    .filter(([modelName, model]) => !route.cost_tier || modelTier(modelName, model) === route.cost_tier)
     .filter(([, model]) => !estimatedTokens || !model.context_window || estimatedTokens <= model.context_window)
     .filter(([modelName]) => {
       const state = health.get(modelName);
@@ -72,6 +73,14 @@ function modelRank(model: { provider: string; price_rank?: number }): number {
   if (model.provider === "deepseek") return 10;
   if (model.provider === "openrouter") return 20;
   return 100;
+}
+
+function modelTier(modelName: string, model: ModelConfig): CostTier {
+  if (model.cost_tier) return model.cost_tier;
+  if (model.provider === "local") return "free";
+  if (model.provider === "deepseek") return "standard";
+  if (modelName.endsWith("/premium")) return "premium";
+  return "standard";
 }
 
 function estimateRequestTokens(body?: OpenAIJsonBody): number | undefined {

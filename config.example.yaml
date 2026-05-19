@@ -93,5 +93,7 @@ models:
     context_window: 200000
 
 # Built-in routes are available without declaring routes:
-# private/chat, private/embedding, private/tts, private/asr
-# auto/chat, auto/embedding, auto/tts, auto/asr
+# local/chat, local/embedding, local/tts, local/asr are concrete local models.
+# free/chat, free/embedding, free/tts, free/asr select free models.
+# standard/chat, standard/embedding, standard/tts, standard/asr select standard models.
+# premium/chat, premium/embedding, premium/tts, premium/asr select premium models.

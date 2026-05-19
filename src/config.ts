@@ -113,22 +113,27 @@ function validateRouting(value: unknown): RoutingConfig {
 
 function builtinRoutes(routing: RoutingConfig): Record<string, RouteConfig> {
   const latency = routing.latency;
-  const route = (endpoint: Endpoint, privateOnly: boolean): RouteConfig => ({
+  const route = (endpoint: Endpoint, costTier?: CostTier): RouteConfig => ({
     endpoint,
-    require_private: privateOnly || undefined,
+    cost_tier: costTier,
     latency,
   });
 
   const routes: Record<string, RouteConfig> = {
-    "private/chat": route("chat", true),
-    "private/embedding": route("embeddings", true),
-    "private/tts": route("audio_speech", true),
-    "private/asr": route("audio_transcriptions", true),
+    "free/chat": route("chat", "free"),
+    "free/embedding": route("embeddings", "free"),
+    "free/tts": route("audio_speech", "free"),
+    "free/asr": route("audio_transcriptions", "free"),
 
-    "auto/chat": route("chat", false),
-    "auto/embedding": route("embeddings", false),
-    "auto/tts": route("audio_speech", false),
-    "auto/asr": route("audio_transcriptions", false),
+    "standard/chat": route("chat", "standard"),
+    "standard/embedding": route("embeddings", "standard"),
+    "standard/tts": route("audio_speech", "standard"),
+    "standard/asr": route("audio_transcriptions", "standard"),
+
+    "premium/chat": route("chat", "premium"),
+    "premium/embedding": route("embeddings", "premium"),
+    "premium/tts": route("audio_speech", "premium"),
+    "premium/asr": route("audio_transcriptions", "premium"),
   };
   return routes;
 }

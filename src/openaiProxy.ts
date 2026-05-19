@@ -3,7 +3,7 @@ import { GatewayError, messageFromUnknown } from "./errors.js";
 import { HealthRegistry } from "./health.js";
 import { logger } from "./logger.js";
 import { isAutoRoute, resolveAutoCandidates, resolveModel } from "./selector.js";
-import { AppConfig, Endpoint, ModelCatalog, OpenAIJsonBody, ProxyEndpointSpec, SelectedModel } from "./types.js";
+import { AppConfig, CostTier, Endpoint, ModelCatalog, ModelConfig, OpenAIJsonBody, ProxyEndpointSpec, RouteConfig, SelectedModel } from "./types.js";
 
 export const ENDPOINT_SPECS: Record<Endpoint, ProxyEndpointSpec> = {
   chat: {
@@ -34,11 +34,13 @@ export const ENDPOINT_SPECS: Record<Endpoint, ProxyEndpointSpec> = {
 
 export function modelsResponse(config: AppConfig, catalog?: ModelCatalog) {
   const modelEntries = catalog?.getModelEntries() ?? Object.entries(config.models).map(([id, model]) => [id, model, undefined] as const);
-  const ids = [...modelEntries.map(([id]) => id), ...Object.keys(config.routes)].sort();
+  const routeEntries = Object.entries(config.routes);
+  const ids = [...modelEntries.map(([id]) => id), ...routeEntries.map(([id]) => id)].sort();
   return {
     object: "list",
     data: ids.map((id) => {
       const model = modelEntries.find(([modelId]) => modelId === id);
+      const route = config.routes[id];
       return {
       id,
       object: "model",
@@ -49,13 +51,30 @@ export function modelsResponse(config: AppConfig, catalog?: ModelCatalog) {
             provider: model[1].provider,
             upstream_model: model[1].upstream_model,
             context_window: model[1].context_window,
-            cost_tier: model[1].cost_tier,
+            cost_tier: displayCostTier(id, model[1]),
             price_rank: model[1].price_rank,
           }
         : {}),
+      ...(route ? routeMetadata(route) : {}),
     };
     }),
   };
+}
+
+function routeMetadata(route: RouteConfig) {
+  return {
+    endpoint: route.endpoint,
+    cost_tier: route.cost_tier,
+    route: true,
+  };
+}
+
+function displayCostTier(modelName: string, model: ModelConfig): CostTier {
+  if (model.cost_tier) return model.cost_tier;
+  if (model.provider === "local") return "free";
+  if (model.provider === "deepseek") return "standard";
+  if (modelName.endsWith("/premium")) return "premium";
+  return "standard";
 }
 
 export function sanitizedConfig(config: AppConfig, catalog?: ModelCatalog) {
