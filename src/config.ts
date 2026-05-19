@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import YAML from "yaml";
-import { AppConfig, CostTier, Endpoint, ModelConfig, OpenRouterSyncConfig, RouteConfig, RouteLatencyConfig, RoutingConfig } from "./types.js";
+import { AppConfig, CostTier, Endpoint, ModelConfig, OpenRouterSyncConfig, RouteConfig, RoutingConfig } from "./types.js";
 
 const COST_TIERS: CostTier[] = ["free", "standard", "premium"];
 const ENDPOINTS: Endpoint[] = ["chat", "embeddings", "audio_speech", "audio_transcriptions"];
@@ -23,9 +23,6 @@ function validateConfig(value: unknown): AppConfig {
   const models = value.models;
   if (!isRecord(models)) throw new Error("Config models must be an object");
 
-  const routes = value.routes;
-  if (routes !== undefined && !isRecord(routes)) throw new Error("Config routes must be an object");
-
   const appConfig: AppConfig = {
     server: {
       host: stringValue(server.host, "server.host"),
@@ -41,12 +38,6 @@ function validateConfig(value: unknown): AppConfig {
 
   for (const [name, rawModel] of Object.entries(models)) {
     appConfig.models[name] = validateModel(rawModel, `models.${name}`);
-  }
-
-  if (isRecord(routes)) {
-    for (const [name, rawRoute] of Object.entries(routes)) {
-      appConfig.routes[name] = validateRoute(rawRoute, `routes.${name}`);
-    }
   }
 
   return appConfig;
@@ -78,26 +69,6 @@ function validateModel(value: unknown, path: string): ModelConfig {
   };
 }
 
-function validateRoute(value: unknown, path: string): RouteConfig {
-  if (!isRecord(value)) throw new Error(`${path} must be an object`);
-
-  const endpoint = stringValue(value.endpoint, `${path}.endpoint`) as Endpoint;
-  if (!ENDPOINTS.includes(endpoint)) throw new Error(`${path}.endpoint is invalid`);
-
-  const maxCostTier = value.max_cost_tier === undefined ? undefined : (stringValue(value.max_cost_tier, `${path}.max_cost_tier`) as CostTier);
-  if (maxCostTier && !COST_TIERS.includes(maxCostTier)) throw new Error(`${path}.max_cost_tier is invalid`);
-
-  return {
-    endpoint,
-    required_capabilities: value.required_capabilities === undefined ? undefined : numberRecord(value.required_capabilities, `${path}.required_capabilities`),
-    require_private: value.require_private === undefined ? undefined : booleanValue(value.require_private, `${path}.require_private`),
-    allow_external: value.allow_external === undefined ? undefined : booleanValue(value.allow_external, `${path}.allow_external`),
-    max_cost_tier: maxCostTier,
-    latency: value.latency === undefined ? undefined : latencyConfig(value.latency, `${path}.latency`),
-    optimize: "cheapest",
-  };
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -115,15 +86,6 @@ function numberValue(value: unknown, path: string): number {
 function booleanValue(value: unknown, path: string): boolean {
   if (typeof value !== "boolean") throw new Error(`${path} must be a boolean`);
   return value;
-}
-
-function numberRecord(value: unknown, path: string): Record<string, number> {
-  if (!isRecord(value)) throw new Error(`${path} must be an object`);
-  const result: Record<string, number> = {};
-  for (const [key, raw] of Object.entries(value)) {
-    result[key] = numberValue(raw, `${path}.${key}`);
-  }
-  return result;
 }
 
 function latencyConfig(value: unknown, path: string) {
@@ -155,11 +117,9 @@ function builtinRoutes(routing: RoutingConfig): Record<string, RouteConfig> {
   const latency = routing.latency;
   const route = (endpoint: Endpoint, capability: string, privateOnly: boolean): RouteConfig => ({
     endpoint,
-    required_capabilities: { [capability]: 1 },
+    required_capability: capability,
     require_private: privateOnly || undefined,
-    allow_external: privateOnly ? false : true,
     latency,
-    optimize: "cheapest",
   });
 
   const routes: Record<string, RouteConfig> = {
@@ -177,9 +137,6 @@ function builtinRoutes(routing: RoutingConfig): Record<string, RouteConfig> {
     "auto/tts": route("audio_speech", "tts", false),
     "auto/asr": route("audio_transcriptions", "asr", false),
   };
-
-  routes["auto/private"] = routes["private/chat"]!;
-  routes["auto/default"] = routes["auto/chat"]!;
   return routes;
 }
 

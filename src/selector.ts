@@ -1,12 +1,6 @@
 import { GatewayError } from "./errors.js";
 import { HealthRegistry } from "./health.js";
-import { AppConfig, CostTier, Endpoint, ModelCatalog, OpenAIJsonBody, RouteConfig, SelectedModel } from "./types.js";
-
-const COST_TIER_ORDER: Record<CostTier, number> = {
-  free: 0,
-  standard: 1,
-  premium: 2,
-};
+import { AppConfig, Endpoint, ModelCatalog, OpenAIJsonBody, RouteConfig, SelectedModel } from "./types.js";
 
 export function resolveModel(config: AppConfig, health: HealthRegistry, requestedModel: string, catalog?: ModelCatalog): SelectedModel {
   const directModel = catalog?.getModel(requestedModel) ?? (config.models[requestedModel] ? { name: requestedModel, config: config.models[requestedModel] } : undefined);
@@ -48,10 +42,8 @@ function selectAutoModels(config: AppConfig, health: HealthRegistry, routeName: 
   const entries = catalog?.getModelEntries() ?? Object.entries(config.models).map(([name, model]) => [name, model, undefined] as const);
   const candidates = entries
     .filter(([, model]) => model.endpoint === route.endpoint)
-    .filter(([, model]) => capabilitiesMatch(model.capabilities, route.required_capabilities))
+    .filter(([, model]) => capabilityMatches(model.capabilities, route.required_capability))
     .filter(([, model]) => !route.require_private || model.capabilities.private === true)
-    .filter(([, model]) => route.allow_external !== false || model.capabilities.private === true)
-    .filter(([, model]) => !route.max_cost_tier || COST_TIER_ORDER[model.cost_tier] <= COST_TIER_ORDER[route.max_cost_tier])
     .filter(([, model]) => !estimatedTokens || !model.context_window || estimatedTokens <= model.context_window)
     .filter(([modelName]) => {
       const state = health.get(modelName);
@@ -71,15 +63,8 @@ function selectAutoModels(config: AppConfig, health: HealthRegistry, routeName: 
   return candidates;
 }
 
-function capabilitiesMatch(modelCapabilities: Record<string, unknown>, required?: Record<string, number>): boolean {
-  if (!required) return true;
-
-  for (const [capability, minimum] of Object.entries(required)) {
-    const actual = modelCapabilities[capability];
-    if (typeof actual !== "number" || actual < minimum) return false;
-  }
-
-  return true;
+function capabilityMatches(modelCapabilities: Record<string, unknown>, requiredCapability: string): boolean {
+  return typeof modelCapabilities[requiredCapability] === "number" || modelCapabilities[requiredCapability] === true;
 }
 
 function latencyMatches(actual: number | undefined, max: number | undefined): boolean {

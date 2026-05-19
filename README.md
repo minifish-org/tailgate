@@ -120,11 +120,6 @@ Recommended route meanings:
 - `auto/tts`: automatic TTS, local or external.
 - `auto/asr`: automatic ASR, local or external.
 
-Backward-compatible aliases are still accepted:
-
-- `auto/private` -> `private/chat`
-- `auto/default` -> `auto/chat`
-
 Auto routing uses hard filtering, then cheapest selection by `price_rank`. Ties use lower network latency.
 
 ## OpenRouter Sync

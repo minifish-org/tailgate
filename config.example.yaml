@@ -127,6 +127,3 @@ models:
 # private/chat, private/coding, private/reasoning, private/embedding, private/tts, private/asr
 # auto/chat, auto/coding, auto/reasoning, auto/embedding, auto/tts, auto/asr
 #
-# Backward-compatible aliases:
-# auto/private -> private/chat
-# auto/default -> auto/chat

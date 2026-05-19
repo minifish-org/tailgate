@@ -58,12 +58,9 @@ export interface RoutingConfig {
 
 export interface RouteConfig {
   endpoint: Endpoint;
-  required_capabilities?: Record<string, number>;
+  required_capability: string;
   require_private?: boolean;
-  allow_external?: boolean;
-  max_cost_tier?: CostTier;
   latency?: RouteLatencyConfig;
-  optimize: "cheapest";
 }
 
 export interface AppConfig {
