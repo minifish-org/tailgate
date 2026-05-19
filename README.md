@@ -103,17 +103,27 @@ Important fields:
 - `models.*.endpoint`: `chat`, `embeddings`, `audio_speech`, or `audio_transcriptions`.
 - `models.*.capabilities`: simple capability tags used by auto routes.
 - `models.*.max_concurrency`: auto routes skip the model when busy.
-- `routes.*.latency`: optional threshold filters.
+- `routing.latency`: global threshold filters for built-in routes.
 
 Recommended route meanings:
 
-- `auto/private`: local only, never external.
-- `auto/default`: general standard-cost route.
-- `auto/coding`: coding tier 2 route.
-- `auto/reasoning`: allows premium.
-- `auto/embedding`: local only.
-- `auto/tts`: local only.
-- `auto/asr`: local only.
+- `private/chat`: private chat only.
+- `private/coding`: private coding only.
+- `private/reasoning`: private reasoning only.
+- `private/embedding`: private embeddings only.
+- `private/tts`: private TTS only.
+- `private/asr`: private ASR only.
+- `auto/chat`: automatic chat, local or external.
+- `auto/coding`: automatic coding, local or external.
+- `auto/reasoning`: automatic reasoning, local or external.
+- `auto/embedding`: automatic embeddings, local or external.
+- `auto/tts`: automatic TTS, local or external.
+- `auto/asr`: automatic ASR, local or external.
+
+Backward-compatible aliases are still accepted:
+
+- `auto/private` -> `private/chat`
+- `auto/default` -> `auto/chat`
 
 Auto routing uses hard filtering, then cheapest selection by `price_rank`. Ties use lower network latency.
 
@@ -275,22 +285,22 @@ curl -s "$TAILGATE_URL/chat/completions" \
   -d '{"model":"local/chat","messages":[{"role":"user","content":"Reply with only: ok"}]}'
 ```
 
-Chat private auto:
+Private chat:
 
 ```bash
 curl -s "$TAILGATE_URL/chat/completions" \
   -H "Authorization: Bearer $ROUTER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"auto/private","messages":[{"role":"user","content":"Reply with only: ok"}]}'
+  -d '{"model":"private/chat","messages":[{"role":"user","content":"Reply with only: ok"}]}'
 ```
 
-Chat default auto:
+Auto chat:
 
 ```bash
 curl -s "$TAILGATE_URL/chat/completions" \
   -H "Authorization: Bearer $ROUTER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"auto/default","messages":[{"role":"user","content":"Write one short TypeScript tip."}]}'
+  -d '{"model":"auto/chat","messages":[{"role":"user","content":"Write one short TypeScript tip."}]}'
 ```
 
 Chat coding auto:

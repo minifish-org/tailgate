@@ -52,6 +52,10 @@ export interface RouteLatencyConfig {
   first_token_p95_ms_max?: number;
 }
 
+export interface RoutingConfig {
+  latency?: RouteLatencyConfig;
+}
+
 export interface RouteConfig {
   endpoint: Endpoint;
   required_capabilities?: Record<string, number>;
@@ -66,6 +70,7 @@ export interface AppConfig {
   server: ServerConfig;
   models: Record<string, ModelConfig>;
   routes: Record<string, RouteConfig>;
+  routing: RoutingConfig;
   openrouter_sync: OpenRouterSyncConfig;
 }
 

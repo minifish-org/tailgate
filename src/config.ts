@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import YAML from "yaml";
-import { AppConfig, CostTier, Endpoint, ModelConfig, OpenRouterSyncConfig, RouteConfig } from "./types.js";
+import { AppConfig, CostTier, Endpoint, ModelConfig, OpenRouterSyncConfig, RouteConfig, RouteLatencyConfig, RoutingConfig } from "./types.js";
 
 const COST_TIERS: CostTier[] = ["free", "standard", "premium"];
 const ENDPOINTS: Endpoint[] = ["chat", "embeddings", "audio_speech", "audio_transcriptions"];
@@ -24,7 +24,7 @@ function validateConfig(value: unknown): AppConfig {
   if (!isRecord(models)) throw new Error("Config models must be an object");
 
   const routes = value.routes;
-  if (!isRecord(routes)) throw new Error("Config routes must be an object");
+  if (routes !== undefined && !isRecord(routes)) throw new Error("Config routes must be an object");
 
   const appConfig: AppConfig = {
     server: {
@@ -34,7 +34,8 @@ function validateConfig(value: unknown): AppConfig {
       fallback_max_attempts: server.fallback_max_attempts === undefined ? 2 : numberValue(server.fallback_max_attempts, "server.fallback_max_attempts"),
     },
     models: {},
-    routes: {},
+    routes: builtinRoutes(validateRouting(value.routing)),
+    routing: validateRouting(value.routing),
     openrouter_sync: validateOpenRouterSync(value.openrouter_sync),
   };
 
@@ -42,8 +43,10 @@ function validateConfig(value: unknown): AppConfig {
     appConfig.models[name] = validateModel(rawModel, `models.${name}`);
   }
 
-  for (const [name, rawRoute] of Object.entries(routes)) {
-    appConfig.routes[name] = validateRoute(rawRoute, `routes.${name}`);
+  if (isRecord(routes)) {
+    for (const [name, rawRoute] of Object.entries(routes)) {
+      appConfig.routes[name] = validateRoute(rawRoute, `routes.${name}`);
+    }
   }
 
   return appConfig;
@@ -126,9 +129,58 @@ function numberRecord(value: unknown, path: string): Record<string, number> {
 function latencyConfig(value: unknown, path: string) {
   if (!isRecord(value)) throw new Error(`${path} must be an object`);
   return {
-    network_p95_ms_max: value.network_p95_ms_max === undefined ? undefined : numberValue(value.network_p95_ms_max, `${path}.network_p95_ms_max`),
-    first_token_p95_ms_max: value.first_token_p95_ms_max === undefined ? undefined : numberValue(value.first_token_p95_ms_max, `${path}.first_token_p95_ms_max`),
+    network_p95_ms_max:
+      value.network_p95_ms_max === undefined
+        ? value.network_ms_max === undefined
+          ? undefined
+          : numberValue(value.network_ms_max, `${path}.network_ms_max`)
+        : numberValue(value.network_p95_ms_max, `${path}.network_p95_ms_max`),
+    first_token_p95_ms_max:
+      value.first_token_p95_ms_max === undefined
+        ? value.first_token_ms_max === undefined
+          ? undefined
+          : numberValue(value.first_token_ms_max, `${path}.first_token_ms_max`)
+        : numberValue(value.first_token_p95_ms_max, `${path}.first_token_p95_ms_max`),
   };
+}
+
+function validateRouting(value: unknown): RoutingConfig {
+  const raw = isRecord(value) ? value : {};
+  return {
+    latency: raw.latency === undefined ? { network_p95_ms_max: 250, first_token_p95_ms_max: 5000 } : latencyConfig(raw.latency, "routing.latency"),
+  };
+}
+
+function builtinRoutes(routing: RoutingConfig): Record<string, RouteConfig> {
+  const latency = routing.latency;
+  const route = (endpoint: Endpoint, capability: string, privateOnly: boolean): RouteConfig => ({
+    endpoint,
+    required_capabilities: { [capability]: 1 },
+    require_private: privateOnly || undefined,
+    allow_external: privateOnly ? false : true,
+    latency,
+    optimize: "cheapest",
+  });
+
+  const routes: Record<string, RouteConfig> = {
+    "private/chat": route("chat", "general", true),
+    "private/coding": route("chat", "coding", true),
+    "private/reasoning": route("chat", "reasoning", true),
+    "private/embedding": route("embeddings", "embedding", true),
+    "private/tts": route("audio_speech", "tts", true),
+    "private/asr": route("audio_transcriptions", "asr", true),
+
+    "auto/chat": route("chat", "general", false),
+    "auto/coding": route("chat", "coding", false),
+    "auto/reasoning": route("chat", "reasoning", false),
+    "auto/embedding": route("embeddings", "embedding", false),
+    "auto/tts": route("audio_speech", "tts", false),
+    "auto/asr": route("audio_transcriptions", "asr", false),
+  };
+
+  routes["auto/private"] = routes["private/chat"]!;
+  routes["auto/default"] = routes["auto/chat"]!;
+  return routes;
 }
 
 function validateOpenRouterSync(value: unknown): OpenRouterSyncConfig {
