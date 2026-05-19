@@ -1,4 +1,4 @@
-import { AppConfig, HealthState } from "./types.js";
+import { AppConfig, HealthModelConfig, HealthState } from "./types.js";
 import { logger } from "./logger.js";
 import { messageFromUnknown } from "./errors.js";
 
@@ -6,10 +6,13 @@ const EWMA_ALPHA = 0.2;
 
 export class HealthRegistry {
   private readonly states = new Map<string, HealthState>();
+  private readonly models = new Map<string, HealthModelConfig>();
+  private readonly timerModels = new Set<string>();
   private readonly timers: NodeJS.Timeout[] = [];
 
   constructor(private readonly config: AppConfig) {
-    for (const modelName of Object.keys(config.models)) {
+    for (const [modelName, model] of Object.entries(config.models)) {
+      this.models.set(modelName, model);
       this.states.set(modelName, initialState());
     }
   }
@@ -18,7 +21,11 @@ export class HealthRegistry {
     return this.states.get(modelName) || initialState();
   }
 
-  ensureModel(modelName: string, healthy = false) {
+  ensureModel(modelName: string, model?: HealthModelConfig, healthy = false) {
+    if (model) {
+      this.models.set(modelName, model);
+      this.ensureTimer(modelName, model);
+    }
     const state = this.mutableState(modelName);
     if (healthy) state.healthy = true;
   }
@@ -37,13 +44,13 @@ export class HealthRegistry {
   beginRequest(modelName: string) {
     const state = this.mutableState(modelName);
     state.in_flight += 1;
-    state.busy = isBusy(this.config, modelName, state.in_flight);
+    state.busy = isBusy(this.models.get(modelName), state.in_flight);
   }
 
   finishRequest(modelName: string, result: { ok: boolean; totalLatencyMs: number; firstTokenLatencyMs?: number; error?: string }) {
     const state = this.mutableState(modelName);
     state.in_flight = Math.max(0, state.in_flight - 1);
-    state.busy = isBusy(this.config, modelName, state.in_flight);
+    state.busy = isBusy(this.models.get(modelName), state.in_flight);
     state.total_latency_ms = ewma(state.total_latency_ms, result.totalLatencyMs);
     if (result.firstTokenLatencyMs !== undefined) {
       state.first_token_latency_ms = ewma(state.first_token_latency_ms, result.firstTokenLatencyMs);
@@ -67,12 +74,8 @@ export class HealthRegistry {
   }
 
   start() {
-    for (const [modelName, modelConfig] of Object.entries(this.config.models)) {
-      const intervalMs = modelConfig.provider === "local" ? 15_000 : 30_000;
-      void this.checkModel(modelName);
-      const timer = setInterval(() => void this.checkModel(modelName), intervalMs);
-      timer.unref();
-      this.timers.push(timer);
+    for (const [modelName, modelConfig] of this.models.entries()) {
+      this.ensureTimer(modelName, modelConfig);
     }
   }
 
@@ -81,7 +84,7 @@ export class HealthRegistry {
   }
 
   private async checkModel(modelName: string) {
-    const model = this.config.models[modelName];
+    const model = this.models.get(modelName);
     if (!model) return;
 
     const startedAt = Date.now();
@@ -125,6 +128,16 @@ export class HealthRegistry {
     this.states.set(modelName, created);
     return created;
   }
+
+  private ensureTimer(modelName: string, modelConfig: HealthModelConfig) {
+    if (this.timerModels.has(modelName)) return;
+    this.timerModels.add(modelName);
+    const intervalMs = modelConfig.provider === "local" ? 15_000 : 30_000;
+    void this.checkModel(modelName);
+    const timer = setInterval(() => void this.checkModel(modelName), intervalMs);
+    timer.unref();
+    this.timers.push(timer);
+  }
 }
 
 function providerHeaders(apiKeyEnv: string): HeadersInit {
@@ -148,9 +161,8 @@ function ewma(previous: number | undefined, next: number): number {
   return previous === undefined ? Math.round(next) : Math.round(previous * (1 - EWMA_ALPHA) + next * EWMA_ALPHA);
 }
 
-function isBusy(config: AppConfig, modelName: string, inFlight: number): boolean {
-  const maxConcurrency = config.models[modelName]?.max_concurrency;
-  return maxConcurrency !== undefined && inFlight >= maxConcurrency;
+function isBusy(model: HealthModelConfig | undefined, inFlight: number): boolean {
+  return model?.max_concurrency !== undefined && inFlight >= model.max_concurrency;
 }
 
 function truncateError(error: string): string {

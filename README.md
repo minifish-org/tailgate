@@ -194,12 +194,13 @@ For configured DeepSeek models, sync updates:
 For allowlist entries not already configured, tailgate creates runtime-only chat models:
 
 ```text
-openrouter/<sanitized-openrouter-id>
+openrouter/<model-name>
 ```
 
 Example:
 
 ```text
+openrouter/free -> openrouter/free
 deepseek/deepseek-chat -> openrouter/deepseek-deepseek-chat
 ```
 

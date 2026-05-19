@@ -206,6 +206,7 @@ function configuredUpstreamIds(config: AppConfig): Set<string> {
 }
 
 function virtualModelId(openrouterId: string): string {
+  if (openrouterId.startsWith("openrouter/")) return openrouterId;
   return `openrouter/${openrouterId.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 }
 

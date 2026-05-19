@@ -76,7 +76,7 @@ models:
     endpoint: chat
     context_window: 64000
 
-  openrouter/default:
+  openrouter/auto:
     provider: openrouter
     upstream_model: openrouter/auto
     base_url: https://openrouter.ai/api/v1

@@ -17,7 +17,7 @@ export class RuntimeCatalog implements ModelCatalog {
   setVirtualModel(modelId: string, model: ModelConfig, metadata: RuntimeModelMetadata) {
     this.virtualModels.set(modelId, model);
     this.overlays.set(modelId, metadata);
-    this.health.ensureModel(modelId);
+    this.health.ensureModel(modelId, model);
   }
 
   getModel(modelName: string): SelectedModel | undefined {

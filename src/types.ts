@@ -99,6 +99,13 @@ export interface HealthState {
   error_count: number;
 }
 
+export interface HealthModelConfig {
+  provider: Provider;
+  base_url: string;
+  api_key_env: string;
+  max_concurrency?: number;
+}
+
 export interface SelectedModel {
   name: string;
   config: ModelConfig;
