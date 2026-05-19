@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import YAML from "yaml";
-import { AppConfig, CostTier, Endpoint, ModelConfig, OpenRouterSyncConfig, RouteConfig, RoutingConfig } from "./types.js";
+import { AppConfig, CostTier, DeepSeekSyncConfig, Endpoint, ModelConfig, OpenRouterSyncConfig, RouteConfig, RoutingConfig } from "./types.js";
 
 const COST_TIERS: CostTier[] = ["free", "standard", "premium"];
 const ENDPOINTS: Endpoint[] = ["chat", "embeddings", "audio_speech", "audio_transcriptions"];
@@ -34,6 +34,7 @@ function validateConfig(value: unknown): AppConfig {
     routes: builtinRoutes(validateRouting(value.routing)),
     routing: validateRouting(value.routing),
     openrouter_sync: validateOpenRouterSync(value.openrouter_sync),
+    deepseek_sync: validateDeepSeekSync(value.deepseek_sync),
   };
 
   for (const [name, rawModel] of Object.entries(models)) {
@@ -150,6 +151,25 @@ function validateOpenRouterSync(value: unknown): OpenRouterSyncConfig {
         costTiers.standard_max_usd_per_1m_tokens === undefined ? 2 : numberValue(costTiers.standard_max_usd_per_1m_tokens, "openrouter_sync.cost_tiers.standard_max_usd_per_1m_tokens"),
       premium_max_usd_per_1m_tokens:
         costTiers.premium_max_usd_per_1m_tokens === undefined ? 9999 : numberValue(costTiers.premium_max_usd_per_1m_tokens, "openrouter_sync.cost_tiers.premium_max_usd_per_1m_tokens"),
+    },
+  };
+}
+
+function validateDeepSeekSync(value: unknown): DeepSeekSyncConfig {
+  const raw = isRecord(value) ? value : {};
+  const costTiers = isRecord(raw.cost_tiers) ? raw.cost_tiers : {};
+
+  return {
+    enabled: raw.enabled === undefined ? false : booleanValue(raw.enabled, "deepseek_sync.enabled"),
+    interval_seconds: raw.interval_seconds === undefined ? 21_600 : numberValue(raw.interval_seconds, "deepseek_sync.interval_seconds"),
+    source_url: raw.source_url === undefined ? "https://api-docs.deepseek.com/quick_start/pricing/" : stringValue(raw.source_url, "deepseek_sync.source_url"),
+    cost_tiers: {
+      free_max_usd_per_1m_tokens:
+        costTiers.free_max_usd_per_1m_tokens === undefined ? 0 : numberValue(costTiers.free_max_usd_per_1m_tokens, "deepseek_sync.cost_tiers.free_max_usd_per_1m_tokens"),
+      standard_max_usd_per_1m_tokens:
+        costTiers.standard_max_usd_per_1m_tokens === undefined ? 2 : numberValue(costTiers.standard_max_usd_per_1m_tokens, "deepseek_sync.cost_tiers.standard_max_usd_per_1m_tokens"),
+      premium_max_usd_per_1m_tokens:
+        costTiers.premium_max_usd_per_1m_tokens === undefined ? 9999 : numberValue(costTiers.premium_max_usd_per_1m_tokens, "deepseek_sync.cost_tiers.premium_max_usd_per_1m_tokens"),
     },
   };
 }

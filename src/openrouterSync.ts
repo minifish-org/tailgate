@@ -1,8 +1,8 @@
 import { GatewayError, messageFromUnknown } from "./errors.js";
-import { HealthRegistry } from "./health.js";
 import { logger } from "./logger.js";
 import { parseOpenRouterPricing } from "./pricing.js";
-import { AppConfig, ModelCatalog, ModelConfig, RuntimeModelMetadata, SelectedModel } from "./types.js";
+import { RuntimeCatalog } from "./runtimeCatalog.js";
+import { AppConfig, ModelConfig, RuntimeModelMetadata } from "./types.js";
 
 interface OpenRouterModel {
   id: string;
@@ -34,15 +34,13 @@ export interface OpenRouterSyncStatus {
   last_added_virtual?: number;
 }
 
-export class OpenRouterSyncService implements ModelCatalog {
-  private readonly overlays = new Map<string, RuntimeModelMetadata>();
-  private readonly virtualModels = new Map<string, ModelConfig>();
+export class OpenRouterSyncService {
   private timer?: NodeJS.Timeout;
   private status: OpenRouterSyncStatus;
 
   constructor(
     private readonly config: AppConfig,
-    private readonly health: HealthRegistry,
+    private readonly catalog: RuntimeCatalog,
   ) {
     this.status = { enabled: config.openrouter_sync.enabled };
   }
@@ -94,7 +92,7 @@ export class OpenRouterSyncService implements ModelCatalog {
           warnings.push(`configured OpenRouter model not found: ${tailgateModelId} -> ${model.upstream_model}`);
           continue;
         }
-        this.overlays.set(tailgateModelId, metadataFromOpenRouterModel(openrouterModel, this.config, syncedAt));
+        this.catalog.setOverlay(tailgateModelId, metadataFromOpenRouterModel(openrouterModel, this.config, syncedAt));
         updatedConfigured += 1;
       }
 
@@ -109,9 +107,7 @@ export class OpenRouterSyncService implements ModelCatalog {
 
         const virtualId = virtualModelId(openrouterId);
         const metadata = metadataFromOpenRouterModel(openrouterModel, this.config, syncedAt);
-        this.virtualModels.set(virtualId, virtualModelConfig(openrouterModel, metadata));
-        this.overlays.set(virtualId, metadata);
-        this.health.ensureModel(virtualId);
+        this.catalog.setVirtualModel(virtualId, virtualModelConfig(openrouterModel, metadata), metadata);
         addedVirtual += 1;
       }
 
@@ -162,44 +158,6 @@ export class OpenRouterSyncService implements ModelCatalog {
   getStatus(): OpenRouterSyncStatus {
     return this.status;
   }
-
-  getModel(modelName: string): SelectedModel | undefined {
-    const configured = this.config.models[modelName];
-    if (configured) return { name: modelName, config: effectiveModel(configured, this.overlays.get(modelName)), metadata: this.overlays.get(modelName) };
-    const virtual = this.virtualModels.get(modelName);
-    if (virtual) return { name: modelName, config: effectiveModel(virtual, this.overlays.get(modelName)), metadata: this.overlays.get(modelName) };
-    return undefined;
-  }
-
-  getModelEntries(): Array<[string, ModelConfig, RuntimeModelMetadata | undefined]> {
-    return [
-      ...Object.entries(this.config.models).map(([id, model]) => [id, effectiveModel(model, this.overlays.get(id)), this.overlays.get(id)] as [string, ModelConfig, RuntimeModelMetadata | undefined]),
-      ...Array.from(this.virtualModels.entries()).map(([id, model]) => [id, effectiveModel(model, this.overlays.get(id)), this.overlays.get(id)] as [string, ModelConfig, RuntimeModelMetadata | undefined]),
-    ];
-  }
-
-  getConfiguredModelEntries(): Array<[string, ModelConfig]> {
-    return Object.entries(this.config.models);
-  }
-
-  getVirtualModelIds(): string[] {
-    return Array.from(this.virtualModels.keys()).sort();
-  }
-
-  getRuntimeMetadataSummary(): Record<string, RuntimeModelMetadata> {
-    return Object.fromEntries(Array.from(this.overlays.entries()).sort(([a], [b]) => a.localeCompare(b)));
-  }
-}
-
-function effectiveModel(model: ModelConfig, metadata?: RuntimeModelMetadata): ModelConfig {
-  if (!metadata) return model;
-  return {
-    ...model,
-    context_window: metadata.context_window ?? model.context_window,
-    cost_tier: metadata.dynamic_cost_tier ?? model.cost_tier,
-    price_rank: metadata.dynamic_price_rank ?? model.price_rank,
-    supported_parameters: metadata.supported_parameters ?? model.supported_parameters,
-  };
 }
 
 function metadataFromOpenRouterModel(model: OpenRouterModel, config: AppConfig, syncedAt: string): RuntimeModelMetadata {
@@ -213,6 +171,7 @@ function metadataFromOpenRouterModel(model: OpenRouterModel, config: AppConfig, 
     dynamic_cost_tier: pricing.costTier,
     dynamic_price_rank: pricing.priceRank,
     supported_parameters: model.supported_parameters,
+    provider_model_name: model.name,
     openrouter_model_name: model.name,
     openrouter_created: model.created,
     last_price_sync_at: syncedAt,

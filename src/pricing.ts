@@ -22,16 +22,24 @@ export function parseOpenRouterPricing(pricing: unknown, costTiers: OpenRouterCo
   const completionPer1M = completion === undefined ? undefined : completion * 1_000_000;
   const blendedPer1M = blend(promptPer1M, completionPer1M);
 
+  const ranked = rankPer1MPricing(promptPer1M, completionPer1M, costTiers);
+  const costTier = ranked.costTier;
+  const priceRank = ranked.priceRank;
+  return { prompt, completion, request, image, promptPer1M, completionPer1M, blendedPer1M, costTier, priceRank };
+}
+
+export function rankPer1MPricing(promptPer1M: number | undefined, completionPer1M: number | undefined, costTiers: OpenRouterCostTierConfig) {
+  const blendedPer1M = blend(promptPer1M, completionPer1M);
+
   if (promptPer1M === 0 && completionPer1M === 0) {
-    return { prompt, completion, request, image, promptPer1M, completionPer1M, blendedPer1M: 0, costTier: "free", priceRank: 0 };
+    return { blendedPer1M: 0, costTier: "free" as CostTier, priceRank: 0 };
   }
 
   const blended = blendedPer1M ?? Number.POSITIVE_INFINITY;
   const costTier: CostTier = blended <= costTiers.standard_max_usd_per_1m_tokens ? "standard" : "premium";
   const baseRank = Number.isFinite(blended) ? Math.round(blended * 100) : 999_999;
   const priceRank = costTier === "standard" ? baseRank : baseRank + 10_000;
-
-  return { prompt, completion, request, image, promptPer1M, completionPer1M, blendedPer1M, costTier, priceRank };
+  return { blendedPer1M, costTier, priceRank };
 }
 
 function parsePrice(value: unknown): number | undefined {

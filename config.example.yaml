@@ -20,6 +20,15 @@ openrouter_sync:
     standard_max_usd_per_1m_tokens: 2
     premium_max_usd_per_1m_tokens: 9999
 
+deepseek_sync:
+  enabled: false
+  interval_seconds: 21600
+  source_url: https://api-docs.deepseek.com/quick_start/pricing/
+  cost_tiers:
+    free_max_usd_per_1m_tokens: 0
+    standard_max_usd_per_1m_tokens: 2
+    premium_max_usd_per_1m_tokens: 9999
+
 routing:
   latency:
     network_ms_max: 250

@@ -25,9 +25,11 @@ export interface OpenRouterSyncConfig {
   cost_tiers: OpenRouterCostTierConfig;
 }
 
-export interface ModelCapabilities {
-  reasoning?: number;
-  [key: string]: number | boolean | undefined;
+export interface DeepSeekSyncConfig {
+  enabled: boolean;
+  interval_seconds: number;
+  source_url: string;
+  cost_tiers: OpenRouterCostTierConfig;
 }
 
 export interface ModelConfig {
@@ -64,6 +66,7 @@ export interface AppConfig {
   routes: Record<string, RouteConfig>;
   routing: RoutingConfig;
   openrouter_sync: OpenRouterSyncConfig;
+  deepseek_sync: DeepSeekSyncConfig;
 }
 
 export interface RuntimeModelMetadata {
@@ -75,6 +78,7 @@ export interface RuntimeModelMetadata {
   dynamic_cost_tier?: CostTier;
   dynamic_price_rank?: number;
   supported_parameters?: string[];
+  provider_model_name?: string;
   openrouter_model_name?: string;
   openrouter_created?: number;
   last_price_sync_at?: string;

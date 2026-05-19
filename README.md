@@ -115,19 +115,27 @@ Recommended route meanings:
 - `auto/tts`: automatic TTS, local or external.
 - `auto/asr`: automatic ASR, local or external.
 
-Auto routing uses hard filtering, then the cheapest dynamic OpenRouter price when available. Without dynamic pricing, it uses the simple built-in provider order: local, DeepSeek, then OpenRouter. Ties use lower network latency.
+Auto routing uses hard filtering, then dynamic provider price when available. Without dynamic pricing, it uses the simple built-in provider order: local, DeepSeek, then OpenRouter. Ties use lower network latency.
 
-## OpenRouter Sync
+## Price Sync
 
-Phase 3 adds optional OpenRouter metadata sync from:
+tailgate can optionally refresh runtime price metadata for configured OpenRouter and DeepSeek models.
+
+OpenRouter sync reads JSON metadata from:
 
 ```text
 GET https://openrouter.ai/api/v1/models
 ```
 
-It refreshes runtime metadata for configured OpenRouter models and optionally creates a small set of runtime-only allowlist models. It does not import the full OpenRouter marketplace by default, does not sync DeepSeek prices, and does not rewrite `config.yaml`.
+DeepSeek sync reads the official pricing page:
 
-It is disabled by default:
+```text
+GET https://api-docs.deepseek.com/quick_start/pricing/
+```
+
+OpenRouter sync refreshes configured OpenRouter models and optionally creates a small set of runtime-only allowlist models. DeepSeek sync only refreshes configured DeepSeek models. tailgate does not import a full provider marketplace and does not rewrite `config.yaml`.
+
+Both sync jobs are disabled by default:
 
 ```yaml
 openrouter_sync:
@@ -141,6 +149,15 @@ openrouter_sync:
     - openrouter/free
     - deepseek/deepseek-chat
     - anthropic/claude-sonnet-4
+  cost_tiers:
+    free_max_usd_per_1m_tokens: 0
+    standard_max_usd_per_1m_tokens: 2
+    premium_max_usd_per_1m_tokens: 9999
+
+deepseek_sync:
+  enabled: false
+  interval_seconds: 21600
+  source_url: https://api-docs.deepseek.com/quick_start/pricing/
   cost_tiers:
     free_max_usd_per_1m_tokens: 0
     standard_max_usd_per_1m_tokens: 2
@@ -166,6 +183,14 @@ For configured OpenRouter models, sync updates runtime metadata used by routing:
 - prompt/completion/request/image prices
 - supported parameters
 - OpenRouter display name and created timestamp
+
+For configured DeepSeek models, sync updates:
+
+- context window
+- prompt price per 1M tokens
+- completion price per 1M tokens
+- cost tier
+- price ranking
 
 For allowlist entries not already configured, tailgate creates runtime-only chat models:
 
@@ -371,6 +396,13 @@ curl -s -X POST "${TAILGATE_URL%/v1}/tailgate/sync/openrouter" \
   -H "Authorization: Bearer $ROUTER_API_KEY"
 ```
 
+Manual DeepSeek sync:
+
+```bash
+curl -s -X POST "${TAILGATE_URL%/v1}/tailgate/sync/deepseek" \
+  -H "Authorization: Bearer $ROUTER_API_KEY"
+```
+
 Sanitized config:
 
 ```bash
@@ -391,10 +423,10 @@ X-Tailgate-Fallback: true|false
 
 - No database; runtime state is in memory.
 - OpenRouter sync overlay disappears after restart.
+- DeepSeek sync overlay disappears after restart.
 - Config file rewrite is not implemented yet.
 - No Web UI.
 - No user or multi-tenant system.
-- No DeepSeek price sync.
 - No automatic provider marketplace beyond OpenRouter allowlist.
 - Only OpenRouter chat models are imported as virtual models.
 - Capability inference from OpenRouter metadata is conservative.
