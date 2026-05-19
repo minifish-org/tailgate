@@ -92,17 +92,43 @@ Create `config.yaml`:
 cp config.example.yaml config.yaml
 ```
 
+Minimal shape:
+
+```yaml
+server:
+  host: 100.100.89.60
+  port: 11435
+
+sync:
+  openrouter: true
+  deepseek: true
+
+local:
+  base_url: http://macbook-air-for-home.taila2cd17.ts.net:8000/v1
+
+deepseek:
+  model: deepseek-v4-flash
+
+openrouter:
+  free_model: openrouter/free
+  standard_model: openrouter/auto
+  premium_model: anthropic/claude-sonnet-4
+```
+
 Important fields:
 
 - `server.host`: listen address. Use the Lightsail Tailscale IP to bind only to Tailscale.
 - `server.port`: listen port.
-- `server.request_timeout_ms`: upstream timeout.
-- `server.fallback_max_attempts`: max candidates tried for tier routes.
-- `models.*.upstream_model`: model name sent to the provider.
-- `models.*.api_key_env`: environment variable containing that provider key.
-- `models.*.endpoint`: `chat`, `embeddings`, `audio_speech`, or `audio_transcriptions`.
-- `models.*.max_concurrency`: tier routes skip the model when busy.
-- `routing.latency`: global threshold filters for built-in tier routes.
+- `sync.openrouter`: enable OpenRouter metadata and price sync.
+- `sync.deepseek`: enable DeepSeek price sync.
+- `routing.network_ms_max`: global network latency cutoff for tier routes.
+- `routing.first_token_ms_max`: global first-token latency cutoff for tier routes.
+- `pricing.standard_max_usd_per_1m_tokens`: max blended price still considered standard.
+- `local.base_url`: qwen-local base URL.
+- `deepseek.model`: DeepSeek upstream model name.
+- `openrouter.free_model`: OpenRouter free-tier model.
+- `openrouter.standard_model`: OpenRouter standard-tier model.
+- `openrouter.premium_model`: OpenRouter premium-tier model.
 
 Recommended route meanings:
 
@@ -132,38 +158,18 @@ DeepSeek sync reads the official pricing page:
 GET https://api-docs.deepseek.com/quick_start/pricing/
 ```
 
-OpenRouter sync refreshes configured OpenRouter models and optionally creates a small set of runtime-only allowlist models. DeepSeek sync only refreshes configured DeepSeek models. tailgate does not import a full provider marketplace and does not rewrite `config.yaml`.
+OpenRouter sync refreshes configured OpenRouter models and creates a runtime-only free model from `openrouter.free_model`. DeepSeek sync refreshes the configured DeepSeek model. tailgate does not import a full provider marketplace and does not rewrite `config.yaml`.
 
 Both sync jobs are disabled by default:
 
 ```yaml
-openrouter_sync:
-  enabled: false
+sync:
+  openrouter: false
+  deepseek: false
   interval_seconds: 21600
-  update_config_file: false
-  source_url: https://openrouter.ai/api/v1/models
-  include_unconfigured_models: false
-  allowlist:
-    - openrouter/auto
-    - openrouter/free
-    - deepseek/deepseek-chat
-    - anthropic/claude-sonnet-4
-  cost_tiers:
-    free_max_usd_per_1m_tokens: 0
-    standard_max_usd_per_1m_tokens: 2
-    premium_max_usd_per_1m_tokens: 9999
-
-deepseek_sync:
-  enabled: false
-  interval_seconds: 21600
-  source_url: https://api-docs.deepseek.com/quick_start/pricing/
-  cost_tiers:
-    free_max_usd_per_1m_tokens: 0
-    standard_max_usd_per_1m_tokens: 2
-    premium_max_usd_per_1m_tokens: 9999
 ```
 
-`enabled=false` is the safe default because runtime metadata can change route choices. When enabled, tailgate syncs shortly after startup and then every `interval_seconds`.
+`false` is the safe default because runtime metadata can change route choices. When enabled, tailgate syncs shortly after startup and then every `interval_seconds`.
 
 Pricing conversion:
 

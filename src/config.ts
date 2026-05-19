@@ -20,6 +20,17 @@ function validateConfig(value: unknown): AppConfig {
   const server = value.server;
   if (!isRecord(server)) throw new Error("Config server must be an object");
 
+  if (!isRecord(value.models)) {
+    return validateExpandedConfig(expandSimpleConfig(value));
+  }
+
+  return validateExpandedConfig(value);
+}
+
+function validateExpandedConfig(value: Record<string, unknown>): AppConfig {
+  const server = value.server;
+  if (!isRecord(server)) throw new Error("Config server must be an object");
+
   const models = value.models;
   if (!isRecord(models)) throw new Error("Config models must be an object");
 
@@ -42,6 +53,124 @@ function validateConfig(value: unknown): AppConfig {
   }
 
   return appConfig;
+}
+
+function expandSimpleConfig(value: Record<string, unknown>): Record<string, unknown> {
+  const server = isRecord(value.server) ? value.server : {};
+  const sync = isRecord(value.sync) ? value.sync : {};
+  const pricing = isRecord(value.pricing) ? value.pricing : {};
+  const local = isRecord(value.local) ? value.local : {};
+  const deepseek = isRecord(value.deepseek) ? value.deepseek : {};
+  const openrouter = isRecord(value.openrouter) ? value.openrouter : {};
+  const routing = isRecord(value.routing) ? value.routing : {};
+
+  const localBaseUrl = stringOrDefault(local.base_url, "http://macbook-pro:8000/v1").replace(/\/+$/, "");
+  const localApiKeyEnv = stringOrDefault(local.api_key_env, "LOCAL_API_KEY");
+  const localMaxConcurrency = numberOrDefault(local.max_concurrency, 1);
+  const localContextWindow = numberOrDefault(local.context_window, 8192);
+
+  const deepseekBaseUrl = stringOrDefault(deepseek.base_url, "https://api.deepseek.com/v1").replace(/\/+$/, "");
+  const deepseekApiKeyEnv = stringOrDefault(deepseek.api_key_env, "DEEPSEEK_API_KEY");
+  const deepseekModel = stringOrDefault(deepseek.model, "deepseek-v4-flash");
+
+  const openrouterBaseUrl = stringOrDefault(openrouter.base_url, "https://openrouter.ai/api/v1").replace(/\/+$/, "");
+  const openrouterApiKeyEnv = stringOrDefault(openrouter.api_key_env, "OPENROUTER_API_KEY");
+  const openrouterFreeModel = stringOrDefault(openrouter.free_model, "openrouter/free");
+  const openrouterAutoModel = stringOrDefault(openrouter.standard_model ?? openrouter.auto_model, "openrouter/auto");
+  const openrouterPremiumModel = stringOrDefault(openrouter.premium_model, "anthropic/claude-sonnet-4");
+  const openrouterExtraModels = openrouter.extra_models === undefined ? [] : stringArray(openrouter.extra_models, "openrouter.extra_models");
+
+  const syncIntervalSeconds = numberOrDefault(sync.interval_seconds, 21_600);
+  const standardMaxUsd = numberOrDefault(pricing.standard_max_usd_per_1m_tokens, 2);
+
+  return {
+    server: {
+      host: stringValue(server.host, "server.host"),
+      port: numberValue(server.port, "server.port"),
+      request_timeout_ms: numberOrDefault(server.request_timeout_ms, 60_000),
+      fallback_max_attempts: numberOrDefault(server.fallback_max_attempts, 2),
+    },
+    openrouter_sync: {
+      enabled: booleanOrDefault(sync.openrouter, false),
+      interval_seconds: syncIntervalSeconds,
+      update_config_file: false,
+      source_url: "https://openrouter.ai/api/v1/models",
+      include_unconfigured_models: false,
+      allowlist: uniqueStrings([openrouterFreeModel, openrouterAutoModel, openrouterPremiumModel, ...openrouterExtraModels]),
+      cost_tiers: costTierDefaults(standardMaxUsd),
+    },
+    deepseek_sync: {
+      enabled: booleanOrDefault(sync.deepseek, false),
+      interval_seconds: syncIntervalSeconds,
+      source_url: "https://api-docs.deepseek.com/quick_start/pricing/",
+      cost_tiers: costTierDefaults(standardMaxUsd),
+    },
+    routing: {
+      latency: {
+        network_ms_max: numberOrDefault(routing.network_ms_max, 250),
+        first_token_ms_max: numberOrDefault(routing.first_token_ms_max, 5000),
+      },
+    },
+    models: {
+      "local/chat": {
+        provider: "local",
+        upstream_model: stringOrDefault(local.chat_model, "local-llm"),
+        base_url: localBaseUrl,
+        api_key_env: localApiKeyEnv,
+        endpoint: "chat",
+        context_window: localContextWindow,
+        max_concurrency: localMaxConcurrency,
+      },
+      "local/embedding": {
+        provider: "local",
+        upstream_model: stringOrDefault(local.embedding_model, "local-embedding"),
+        base_url: localBaseUrl,
+        api_key_env: localApiKeyEnv,
+        endpoint: "embeddings",
+        max_concurrency: localMaxConcurrency,
+      },
+      "local/tts": {
+        provider: "local",
+        upstream_model: stringOrDefault(local.tts_model, "local-tts"),
+        base_url: localBaseUrl,
+        api_key_env: localApiKeyEnv,
+        endpoint: "audio_speech",
+        max_concurrency: localMaxConcurrency,
+      },
+      "local/asr": {
+        provider: "local",
+        upstream_model: stringOrDefault(local.asr_model, "local-asr"),
+        base_url: localBaseUrl,
+        api_key_env: localApiKeyEnv,
+        endpoint: "audio_transcriptions",
+        max_concurrency: localMaxConcurrency,
+      },
+      "deepseek/chat": {
+        provider: "deepseek",
+        upstream_model: deepseekModel,
+        base_url: deepseekBaseUrl,
+        api_key_env: deepseekApiKeyEnv,
+        endpoint: "chat",
+        context_window: numberOrDefault(deepseek.context_window, 64_000),
+      },
+      "openrouter/auto": {
+        provider: "openrouter",
+        upstream_model: openrouterAutoModel,
+        base_url: openrouterBaseUrl,
+        api_key_env: openrouterApiKeyEnv,
+        endpoint: "chat",
+        context_window: numberOrDefault(openrouter.standard_context_window ?? openrouter.auto_context_window, 128_000),
+      },
+      "openrouter/premium": {
+        provider: "openrouter",
+        upstream_model: openrouterPremiumModel,
+        base_url: openrouterBaseUrl,
+        api_key_env: openrouterApiKeyEnv,
+        endpoint: "chat",
+        context_window: numberOrDefault(openrouter.premium_context_window, 200_000),
+      },
+    },
+  };
 }
 
 function validateModel(value: unknown, path: string): ModelConfig {
@@ -84,6 +213,30 @@ function numberValue(value: unknown, path: string): number {
 function booleanValue(value: unknown, path: string): boolean {
   if (typeof value !== "boolean") throw new Error(`${path} must be a boolean`);
   return value;
+}
+
+function stringOrDefault(value: unknown, fallback: string): string {
+  return value === undefined ? fallback : stringValue(value, "config value");
+}
+
+function numberOrDefault(value: unknown, fallback: number): number {
+  return value === undefined ? fallback : numberValue(value, "config value");
+}
+
+function booleanOrDefault(value: unknown, fallback: boolean): boolean {
+  return value === undefined ? fallback : booleanValue(value, "config value");
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return Array.from(new Set(values));
+}
+
+function costTierDefaults(standardMaxUsd: number) {
+  return {
+    free_max_usd_per_1m_tokens: 0,
+    standard_max_usd_per_1m_tokens: standardMaxUsd,
+    premium_max_usd_per_1m_tokens: 9999,
+  };
 }
 
 function latencyConfig(value: unknown, path: string) {
