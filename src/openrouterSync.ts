@@ -162,20 +162,27 @@ export class OpenRouterSyncService {
 
 function metadataFromOpenRouterModel(model: OpenRouterModel, config: AppConfig, syncedAt: string): RuntimeModelMetadata {
   const pricing = parseOpenRouterPricing(model.pricing, config.openrouter_sync.cost_tiers);
+  const tierOverride = openRouterTierOverride(model.id);
   return {
     context_window: model.context_length,
     dynamic_price_prompt: pricing.promptPer1M,
     dynamic_price_completion: pricing.completionPer1M,
     dynamic_price_request: pricing.request,
     dynamic_price_image: pricing.image,
-    dynamic_cost_tier: pricing.costTier,
-    dynamic_price_rank: pricing.priceRank,
+    dynamic_cost_tier: tierOverride?.cost_tier ?? pricing.costTier,
+    dynamic_price_rank: tierOverride?.price_rank ?? pricing.priceRank,
     supported_parameters: model.supported_parameters,
     provider_model_name: model.name,
     openrouter_model_name: model.name,
     openrouter_created: model.created,
     last_price_sync_at: syncedAt,
   };
+}
+
+function openRouterTierOverride(modelId: string) {
+  if (modelId === "openrouter/free") return { cost_tier: "free" as const, price_rank: 0 };
+  if (modelId === "openrouter/auto") return { cost_tier: "standard" as const, price_rank: 30 };
+  return undefined;
 }
 
 function virtualModelConfig(model: OpenRouterModel, metadata: RuntimeModelMetadata): ModelConfig {
