@@ -9,6 +9,22 @@ export interface ServerConfig {
   fallback_max_attempts: number;
 }
 
+export interface OpenRouterCostTierConfig {
+  free_max_usd_per_1m_tokens: number;
+  standard_max_usd_per_1m_tokens: number;
+  premium_max_usd_per_1m_tokens: number;
+}
+
+export interface OpenRouterSyncConfig {
+  enabled: boolean;
+  interval_seconds: number;
+  update_config_file: boolean;
+  source_url: string;
+  include_unconfigured_models: boolean;
+  allowlist: string[];
+  cost_tiers: OpenRouterCostTierConfig;
+}
+
 export interface ModelCapabilities {
   general?: number;
   coding?: number;
@@ -28,6 +44,7 @@ export interface ModelConfig {
   price_rank: number;
   context_window?: number;
   max_concurrency?: number;
+  supported_parameters?: string[];
 }
 
 export interface RouteLatencyConfig {
@@ -49,6 +66,21 @@ export interface AppConfig {
   server: ServerConfig;
   models: Record<string, ModelConfig>;
   routes: Record<string, RouteConfig>;
+  openrouter_sync: OpenRouterSyncConfig;
+}
+
+export interface RuntimeModelMetadata {
+  context_window?: number;
+  dynamic_price_prompt?: number;
+  dynamic_price_completion?: number;
+  dynamic_price_request?: number;
+  dynamic_price_image?: number;
+  dynamic_cost_tier?: CostTier;
+  dynamic_price_rank?: number;
+  supported_parameters?: string[];
+  openrouter_model_name?: string;
+  openrouter_created?: number;
+  last_price_sync_at?: string;
 }
 
 export interface HealthState {
@@ -68,6 +100,7 @@ export interface HealthState {
 export interface SelectedModel {
   name: string;
   config: ModelConfig;
+  metadata?: RuntimeModelMetadata;
 }
 
 export interface OpenAIJsonBody {
@@ -81,4 +114,12 @@ export interface ProxyEndpointSpec {
   upstreamPath: string;
   bodyKind: "json" | "multipart";
   supportsStream: boolean;
+}
+
+export interface ModelCatalog {
+  getModel(modelName: string): SelectedModel | undefined;
+  getModelEntries(): Array<[string, ModelConfig, RuntimeModelMetadata | undefined]>;
+  getConfiguredModelEntries(): Array<[string, ModelConfig]>;
+  getVirtualModelIds(): string[];
+  getRuntimeMetadataSummary(): Record<string, RuntimeModelMetadata>;
 }

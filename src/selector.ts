@@ -1,6 +1,6 @@
 import { GatewayError } from "./errors.js";
 import { HealthRegistry } from "./health.js";
-import { AppConfig, CostTier, Endpoint, OpenAIJsonBody, RouteConfig, SelectedModel } from "./types.js";
+import { AppConfig, CostTier, Endpoint, ModelCatalog, OpenAIJsonBody, RouteConfig, SelectedModel } from "./types.js";
 
 const COST_TIER_ORDER: Record<CostTier, number> = {
   free: 0,
@@ -8,10 +8,10 @@ const COST_TIER_ORDER: Record<CostTier, number> = {
   premium: 2,
 };
 
-export function resolveModel(config: AppConfig, health: HealthRegistry, requestedModel: string): SelectedModel {
-  const directModel = config.models[requestedModel];
+export function resolveModel(config: AppConfig, health: HealthRegistry, requestedModel: string, catalog?: ModelCatalog): SelectedModel {
+  const directModel = catalog?.getModel(requestedModel) ?? (config.models[requestedModel] ? { name: requestedModel, config: config.models[requestedModel] } : undefined);
   if (directModel) {
-    return { name: requestedModel, config: directModel };
+    return directModel;
   }
 
   const route = config.routes[requestedModel];
@@ -19,7 +19,7 @@ export function resolveModel(config: AppConfig, health: HealthRegistry, requeste
     throw new GatewayError(`Unknown model or route: ${requestedModel}`, 404, "model_not_found");
   }
 
-  return selectAutoModels(config, health, requestedModel, route)[0]!;
+  return selectAutoModels(config, health, requestedModel, route, undefined, catalog)[0]!;
 }
 
 export function isAutoRoute(config: AppConfig, requestedModel: string): boolean {
@@ -32,6 +32,7 @@ export function resolveAutoCandidates(
   requestedModel: string,
   endpoint: Endpoint,
   body?: OpenAIJsonBody,
+  catalog?: ModelCatalog,
 ): SelectedModel[] {
   const route = config.routes[requestedModel];
   if (!route) {
@@ -40,11 +41,12 @@ export function resolveAutoCandidates(
   if (route.endpoint !== endpoint) {
     throw new GatewayError(`Route ${requestedModel} does not support endpoint ${endpoint}`, 400, "endpoint_mismatch");
   }
-  return selectAutoModels(config, health, requestedModel, route, estimateRequestTokens(body));
+  return selectAutoModels(config, health, requestedModel, route, estimateRequestTokens(body), catalog);
 }
 
-function selectAutoModels(config: AppConfig, health: HealthRegistry, routeName: string, route: RouteConfig, estimatedTokens?: number): SelectedModel[] {
-  const candidates = Object.entries(config.models)
+function selectAutoModels(config: AppConfig, health: HealthRegistry, routeName: string, route: RouteConfig, estimatedTokens?: number, catalog?: ModelCatalog): SelectedModel[] {
+  const entries = catalog?.getModelEntries() ?? Object.entries(config.models).map(([name, model]) => [name, model, undefined] as const);
+  const candidates = entries
     .filter(([, model]) => model.endpoint === route.endpoint)
     .filter(([, model]) => capabilitiesMatch(model.capabilities, route.required_capabilities))
     .filter(([, model]) => !route.require_private || model.capabilities.private === true)
@@ -60,7 +62,7 @@ function selectAutoModels(config: AppConfig, health: HealthRegistry, routeName: 
       if (priceDelta !== 0) return priceDelta;
       return (health.get(a[0]).network_latency_ms ?? Number.MAX_SAFE_INTEGER) - (health.get(b[0]).network_latency_ms ?? Number.MAX_SAFE_INTEGER);
     })
-    .map(([name, model]) => ({ name, config: model }));
+    .map(([name, model, metadata]) => ({ name, config: model, metadata }));
 
   if (candidates.length === 0) {
     throw new GatewayError(`No healthy model matches route: ${routeName}`, 503, "no_healthy_model");

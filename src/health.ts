@@ -18,14 +18,19 @@ export class HealthRegistry {
     return this.states.get(modelName) || initialState();
   }
 
-  snapshot() {
-    return Object.entries(this.config.models)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([modelName, model]) => ({
-        id: modelName,
+  ensureModel(modelName: string, healthy = false) {
+    const state = this.mutableState(modelName);
+    if (healthy) state.healthy = true;
+  }
+
+  snapshot(models = Object.entries(this.config.models).map(([id, model]) => ({ id, provider: model.provider, endpoint: model.endpoint }))) {
+    return models
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((model) => ({
+        id: model.id,
         provider: model.provider,
         endpoint: model.endpoint,
-        ...this.get(modelName),
+        ...this.get(model.id),
       }));
   }
 

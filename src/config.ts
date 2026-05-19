@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import YAML from "yaml";
-import { AppConfig, CostTier, Endpoint, ModelConfig, RouteConfig } from "./types.js";
+import { AppConfig, CostTier, Endpoint, ModelConfig, OpenRouterSyncConfig, RouteConfig } from "./types.js";
 
 const COST_TIERS: CostTier[] = ["free", "standard", "premium"];
 const ENDPOINTS: Endpoint[] = ["chat", "embeddings", "audio_speech", "audio_transcriptions"];
@@ -35,6 +35,7 @@ function validateConfig(value: unknown): AppConfig {
     },
     models: {},
     routes: {},
+    openrouter_sync: validateOpenRouterSync(value.openrouter_sync),
   };
 
   for (const [name, rawModel] of Object.entries(models)) {
@@ -70,6 +71,7 @@ function validateModel(value: unknown, path: string): ModelConfig {
     price_rank: numberValue(value.price_rank, `${path}.price_rank`),
     context_window: value.context_window === undefined ? undefined : numberValue(value.context_window, `${path}.context_window`),
     max_concurrency: value.max_concurrency === undefined ? undefined : numberValue(value.max_concurrency, `${path}.max_concurrency`),
+    supported_parameters: value.supported_parameters === undefined ? undefined : stringArray(value.supported_parameters, `${path}.supported_parameters`),
   };
 }
 
@@ -127,4 +129,31 @@ function latencyConfig(value: unknown, path: string) {
     network_p95_ms_max: value.network_p95_ms_max === undefined ? undefined : numberValue(value.network_p95_ms_max, `${path}.network_p95_ms_max`),
     first_token_p95_ms_max: value.first_token_p95_ms_max === undefined ? undefined : numberValue(value.first_token_p95_ms_max, `${path}.first_token_p95_ms_max`),
   };
+}
+
+function validateOpenRouterSync(value: unknown): OpenRouterSyncConfig {
+  const raw = isRecord(value) ? value : {};
+  const costTiers = isRecord(raw.cost_tiers) ? raw.cost_tiers : {};
+
+  return {
+    enabled: raw.enabled === undefined ? false : booleanValue(raw.enabled, "openrouter_sync.enabled"),
+    interval_seconds: raw.interval_seconds === undefined ? 21_600 : numberValue(raw.interval_seconds, "openrouter_sync.interval_seconds"),
+    update_config_file: raw.update_config_file === undefined ? false : booleanValue(raw.update_config_file, "openrouter_sync.update_config_file"),
+    source_url: raw.source_url === undefined ? "https://openrouter.ai/api/v1/models" : stringValue(raw.source_url, "openrouter_sync.source_url"),
+    include_unconfigured_models: raw.include_unconfigured_models === undefined ? false : booleanValue(raw.include_unconfigured_models, "openrouter_sync.include_unconfigured_models"),
+    allowlist: raw.allowlist === undefined ? [] : stringArray(raw.allowlist, "openrouter_sync.allowlist"),
+    cost_tiers: {
+      free_max_usd_per_1m_tokens:
+        costTiers.free_max_usd_per_1m_tokens === undefined ? 0 : numberValue(costTiers.free_max_usd_per_1m_tokens, "openrouter_sync.cost_tiers.free_max_usd_per_1m_tokens"),
+      standard_max_usd_per_1m_tokens:
+        costTiers.standard_max_usd_per_1m_tokens === undefined ? 2 : numberValue(costTiers.standard_max_usd_per_1m_tokens, "openrouter_sync.cost_tiers.standard_max_usd_per_1m_tokens"),
+      premium_max_usd_per_1m_tokens:
+        costTiers.premium_max_usd_per_1m_tokens === undefined ? 9999 : numberValue(costTiers.premium_max_usd_per_1m_tokens, "openrouter_sync.cost_tiers.premium_max_usd_per_1m_tokens"),
+    },
+  };
+}
+
+function stringArray(value: unknown, path: string): string[] {
+  if (!Array.isArray(value)) throw new Error(`${path} must be an array`);
+  return value.map((item, index) => stringValue(item, `${path}.${index}`));
 }

@@ -23,9 +23,10 @@ tailgate is not an OpenRouter replacement. OpenRouter handles the public model m
 - concrete model IDs and auto routes
 - local `max_concurrency=1` protection for auto routes
 - in-memory health and runtime state
+- optional OpenRouter model metadata and price sync
 - authenticated `/tailgate/health` and `/tailgate/config`
 
-Phase 2 intentionally does not include SQLite, Web UI, users, multi-tenancy, price sync, prompt classification, session policy, complex billing, vector databases, or dashboards.
+This project intentionally does not include SQLite, Web UI, users, multi-tenancy, prompt classification, session policy, complex billing, vector databases, or dashboards.
 
 ## Architecture
 
@@ -115,6 +116,71 @@ Recommended route meanings:
 - `auto/asr`: local only.
 
 Auto routing uses hard filtering, then cheapest selection by `price_rank`. Ties use lower network latency.
+
+## OpenRouter Sync
+
+Phase 3 adds optional OpenRouter metadata sync from:
+
+```text
+GET https://openrouter.ai/api/v1/models
+```
+
+It refreshes runtime metadata for configured OpenRouter models and optionally creates a small set of runtime-only allowlist models. It does not import the full OpenRouter marketplace by default, does not sync DeepSeek prices, and does not rewrite `config.yaml`.
+
+It is disabled by default:
+
+```yaml
+openrouter_sync:
+  enabled: false
+  interval_seconds: 21600
+  update_config_file: false
+  source_url: https://openrouter.ai/api/v1/models
+  include_unconfigured_models: false
+  allowlist:
+    - openrouter/auto
+    - openrouter/free
+    - deepseek/deepseek-chat
+    - anthropic/claude-sonnet-4
+  cost_tiers:
+    free_max_usd_per_1m_tokens: 0
+    standard_max_usd_per_1m_tokens: 2
+    premium_max_usd_per_1m_tokens: 9999
+```
+
+`enabled=false` is the safe default because runtime metadata can change route choices. When enabled, tailgate syncs shortly after startup and then every `interval_seconds`.
+
+Pricing conversion:
+
+- `pricing.prompt` and `pricing.completion` are parsed as USD per token.
+- `prompt_per_1m = prompt * 1_000_000`
+- `completion_per_1m = completion * 1_000_000`
+- `blended_per_1m = prompt_per_1m * 0.4 + completion_per_1m * 0.6`
+- zero prompt and completion means `free`, `price_rank=0`
+- standard rank is `round(blended_per_1m * 100)`
+- premium rank is `round(blended_per_1m * 100) + 10000`
+
+For configured OpenRouter models, sync updates runtime metadata used by routing:
+
+- context window
+- cost tier
+- price rank
+- prompt/completion/request/image prices
+- supported parameters
+- OpenRouter display name and created timestamp
+
+For allowlist entries not already configured, tailgate creates runtime-only chat models:
+
+```text
+openrouter/<sanitized-openrouter-id>
+```
+
+Example:
+
+```text
+deepseek/deepseek-chat -> openrouter/deepseek-deepseek-chat
+```
+
+Capability inference is conservative. Virtual models get `general: 2`; supported parameters may add `tool_calling`, `structured_output`, or `reasoning` hints. tailgate does not infer `coding: 2`.
 
 ## Running Locally
 
@@ -308,6 +374,13 @@ curl -s "${TAILGATE_URL%/v1}/tailgate/health" \
   -H "Authorization: Bearer $ROUTER_API_KEY"
 ```
 
+Manual OpenRouter sync:
+
+```bash
+curl -s -X POST "${TAILGATE_URL%/v1}/tailgate/sync/openrouter" \
+  -H "Authorization: Bearer $ROUTER_API_KEY"
+```
+
 Sanitized config:
 
 ```bash
@@ -327,9 +400,14 @@ X-Tailgate-Fallback: true|false
 ## Current Limitations
 
 - No database; runtime state is in memory.
+- OpenRouter sync overlay disappears after restart.
+- Config file rewrite is not implemented yet.
 - No Web UI.
 - No user or multi-tenant system.
-- No OpenRouter price sync or automatic pricing.
+- No DeepSeek price sync.
+- No automatic provider marketplace beyond OpenRouter allowlist.
+- Only OpenRouter chat models are imported as virtual models.
+- Capability inference from OpenRouter metadata is conservative.
 - No prompt classifier or session policy.
 - No complex billing.
 - No vector database.

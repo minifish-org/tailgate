@@ -3,7 +3,7 @@ import { GatewayError, messageFromUnknown } from "./errors.js";
 import { HealthRegistry } from "./health.js";
 import { logger } from "./logger.js";
 import { isAutoRoute, resolveAutoCandidates, resolveModel } from "./selector.js";
-import { AppConfig, Endpoint, OpenAIJsonBody, ProxyEndpointSpec, SelectedModel } from "./types.js";
+import { AppConfig, Endpoint, ModelCatalog, OpenAIJsonBody, ProxyEndpointSpec, SelectedModel } from "./types.js";
 
 export const ENDPOINT_SPECS: Record<Endpoint, ProxyEndpointSpec> = {
   chat: {
@@ -32,24 +32,41 @@ export const ENDPOINT_SPECS: Record<Endpoint, ProxyEndpointSpec> = {
   },
 };
 
-export function modelsResponse(config: AppConfig) {
-  const ids = [...Object.keys(config.models), ...Object.keys(config.routes)].sort();
+export function modelsResponse(config: AppConfig, catalog?: ModelCatalog) {
+  const modelEntries = catalog?.getModelEntries() ?? Object.entries(config.models).map(([id, model]) => [id, model, undefined] as const);
+  const ids = [...modelEntries.map(([id]) => id), ...Object.keys(config.routes)].sort();
   return {
     object: "list",
-    data: ids.map((id) => ({
+    data: ids.map((id) => {
+      const model = modelEntries.find(([modelId]) => modelId === id);
+      return {
       id,
       object: "model",
       created: 0,
       owned_by: "tailgate",
-    })),
+      ...(model
+        ? {
+            provider: model[1].provider,
+            upstream_model: model[1].upstream_model,
+            context_window: model[1].context_window,
+            cost_tier: model[1].cost_tier,
+            price_rank: model[1].price_rank,
+          }
+        : {}),
+    };
+    }),
   };
 }
 
-export function sanitizedConfig(config: AppConfig): AppConfig {
-  return JSON.parse(JSON.stringify(config)) as AppConfig;
+export function sanitizedConfig(config: AppConfig, catalog?: ModelCatalog) {
+  return {
+    ...JSON.parse(JSON.stringify(config)),
+    runtime_overlay: catalog?.getRuntimeMetadataSummary() ?? {},
+    virtual_model_ids: catalog?.getVirtualModelIds() ?? [],
+  };
 }
 
-export async function proxyOpenAIEndpoint(c: Context, config: AppConfig, health: HealthRegistry, requestId: string, spec: ProxyEndpointSpec) {
+export async function proxyOpenAIEndpoint(c: Context, config: AppConfig, health: HealthRegistry, catalog: ModelCatalog | undefined, requestId: string, spec: ProxyEndpointSpec) {
   const startedAt = Date.now();
   const path = new URL(c.req.url).pathname;
   const sessionId = c.req.header("x-session-id");
@@ -68,7 +85,7 @@ export async function proxyOpenAIEndpoint(c: Context, config: AppConfig, health:
     requestedModel = requestBody.model;
     stream = spec.supportsStream && requestBody.kind === "json" && requestBody.stream === true;
 
-    const candidates = candidateModels(config, health, requestedModel, spec.endpoint, requestBody.kind === "json" ? requestBody.jsonBody : undefined);
+    const candidates = candidateModels(config, health, catalog, requestedModel, spec.endpoint, requestBody.kind === "json" ? requestBody.jsonBody : undefined);
     let lastFailure: unknown;
 
     for (let index = 0; index < candidates.length; index += 1) {
@@ -156,12 +173,12 @@ export async function proxyOpenAIEndpoint(c: Context, config: AppConfig, health:
   }
 }
 
-function candidateModels(config: AppConfig, health: HealthRegistry, requestedModel: string, endpoint: Endpoint, body?: OpenAIJsonBody): SelectedModel[] {
+function candidateModels(config: AppConfig, health: HealthRegistry, catalog: ModelCatalog | undefined, requestedModel: string, endpoint: Endpoint, body?: OpenAIJsonBody): SelectedModel[] {
   if (isAutoRoute(config, requestedModel)) {
-    return resolveAutoCandidates(config, health, requestedModel, endpoint, body).slice(0, Math.max(1, config.server.fallback_max_attempts));
+    return resolveAutoCandidates(config, health, requestedModel, endpoint, body, catalog).slice(0, Math.max(1, config.server.fallback_max_attempts));
   }
 
-  const selected = resolveModel(config, health, requestedModel);
+  const selected = resolveModel(config, health, requestedModel, catalog);
   if (selected.config.endpoint !== endpoint) {
     throw new GatewayError(`Model ${requestedModel} does not support endpoint ${endpoint}`, 400, "endpoint_mismatch");
   }

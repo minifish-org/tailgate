@@ -4,6 +4,22 @@ server:
   request_timeout_ms: 60000
   fallback_max_attempts: 2
 
+openrouter_sync:
+  enabled: false
+  interval_seconds: 21600
+  update_config_file: false
+  source_url: https://openrouter.ai/api/v1/models
+  include_unconfigured_models: false
+  allowlist:
+    - openrouter/auto
+    - openrouter/free
+    - deepseek/deepseek-chat
+    - anthropic/claude-sonnet-4
+  cost_tiers:
+    free_max_usd_per_1m_tokens: 0
+    standard_max_usd_per_1m_tokens: 2
+    premium_max_usd_per_1m_tokens: 9999
+
 models:
   local/chat:
     provider: local
