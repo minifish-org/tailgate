@@ -7,7 +7,7 @@ import { loadConfig } from "./config.js";
 import { errorResponse, GatewayError } from "./errors.js";
 import { HealthRegistry } from "./health.js";
 import { logger } from "./logger.js";
-import { modelsResponse, proxyChatCompletions } from "./openaiProxy.js";
+import { ENDPOINT_SPECS, modelsResponse, proxyOpenAIEndpoint, sanitizedConfig } from "./openaiProxy.js";
 
 const config = loadConfig();
 const health = new HealthRegistry(config);
@@ -16,13 +16,33 @@ health.start();
 const app = new Hono();
 
 app.use("/v1/*", requireRouterAuth);
+app.use("/tailgate/*", requireRouterAuth);
 
 app.get("/v1/models", (c) => c.json(modelsResponse(config)));
 
 app.post("/v1/chat/completions", async (c) => {
   const requestId = c.req.header("x-request-id") || randomUUID();
-  return proxyChatCompletions(c, config, health, requestId);
+  return proxyOpenAIEndpoint(c, config, health, requestId, ENDPOINT_SPECS.chat);
 });
+
+app.post("/v1/embeddings", async (c) => {
+  const requestId = c.req.header("x-request-id") || randomUUID();
+  return proxyOpenAIEndpoint(c, config, health, requestId, ENDPOINT_SPECS.embeddings);
+});
+
+app.post("/v1/audio/speech", async (c) => {
+  const requestId = c.req.header("x-request-id") || randomUUID();
+  return proxyOpenAIEndpoint(c, config, health, requestId, ENDPOINT_SPECS.audio_speech);
+});
+
+app.post("/v1/audio/transcriptions", async (c) => {
+  const requestId = c.req.header("x-request-id") || randomUUID();
+  return proxyOpenAIEndpoint(c, config, health, requestId, ENDPOINT_SPECS.audio_transcriptions);
+});
+
+app.get("/tailgate/health", (c) => c.json({ object: "tailgate.health", data: health.snapshot() }));
+
+app.get("/tailgate/config", (c) => c.json(sanitizedConfig(config)));
 
 app.notFound((c) => errorResponse(c, 404, "not_found", "Not found"));
 

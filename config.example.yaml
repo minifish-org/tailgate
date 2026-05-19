@@ -2,6 +2,7 @@ server:
   host: 0.0.0.0
   port: 11435
   request_timeout_ms: 60000
+  fallback_max_attempts: 2
 
 models:
   local/chat:
@@ -17,6 +18,45 @@ models:
     cost_tier: free
     price_rank: 0
     context_window: 8192
+    max_concurrency: 1
+
+  local/embedding:
+    provider: local
+    upstream_model: local-embedding
+    base_url: http://macbook-pro:8000/v1
+    api_key_env: LOCAL_API_KEY
+    endpoint: embeddings
+    capabilities:
+      embedding: 1
+      private: true
+    cost_tier: free
+    price_rank: 0
+    max_concurrency: 1
+
+  local/tts:
+    provider: local
+    upstream_model: local-tts
+    base_url: http://macbook-pro:8000/v1
+    api_key_env: LOCAL_API_KEY
+    endpoint: audio_speech
+    capabilities:
+      tts: 1
+      private: true
+    cost_tier: free
+    price_rank: 0
+    max_concurrency: 1
+
+  local/asr:
+    provider: local
+    upstream_model: local-asr
+    base_url: http://macbook-pro:8000/v1
+    api_key_env: LOCAL_API_KEY
+    endpoint: audio_transcriptions
+    capabilities:
+      asr: 1
+      private: true
+    cost_tier: free
+    price_rank: 0
     max_concurrency: 1
 
   deepseek/chat:
@@ -47,6 +87,21 @@ models:
     price_rank: 20
     context_window: 128000
 
+  openrouter/premium:
+    provider: openrouter
+    upstream_model: anthropic/claude-sonnet-4
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    endpoint: chat
+    capabilities:
+      general: 3
+      coding: 3
+      reasoning: 3
+      writing: 3
+    cost_tier: premium
+    price_rank: 100
+    context_window: 200000
+
 routes:
   auto/private:
     endpoint: chat
@@ -55,12 +110,67 @@ routes:
     require_private: true
     allow_external: false
     max_cost_tier: free
+    latency:
+      network_p95_ms_max: 100
+      first_token_p95_ms_max: 3000
     optimize: cheapest
 
   auto/default:
     endpoint: chat
     required_capabilities:
-      general: 1
+      general: 2
     allow_external: true
     max_cost_tier: standard
+    latency:
+      network_p95_ms_max: 150
+      first_token_p95_ms_max: 5000
+    optimize: cheapest
+
+  auto/coding:
+    endpoint: chat
+    required_capabilities:
+      coding: 2
+    allow_external: true
+    max_cost_tier: standard
+    latency:
+      network_p95_ms_max: 150
+      first_token_p95_ms_max: 5000
+    optimize: cheapest
+
+  auto/reasoning:
+    endpoint: chat
+    required_capabilities:
+      reasoning: 2
+    allow_external: true
+    max_cost_tier: premium
+    latency:
+      network_p95_ms_max: 300
+      first_token_p95_ms_max: 10000
+    optimize: cheapest
+
+  auto/embedding:
+    endpoint: embeddings
+    required_capabilities:
+      embedding: 1
+    require_private: true
+    allow_external: false
+    max_cost_tier: free
+    optimize: cheapest
+
+  auto/tts:
+    endpoint: audio_speech
+    required_capabilities:
+      tts: 1
+    require_private: true
+    allow_external: false
+    max_cost_tier: free
+    optimize: cheapest
+
+  auto/asr:
+    endpoint: audio_transcriptions
+    required_capabilities:
+      asr: 1
+    require_private: true
+    allow_external: false
+    max_cost_tier: free
     optimize: cheapest

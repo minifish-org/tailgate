@@ -3,6 +3,7 @@ import YAML from "yaml";
 import { AppConfig, CostTier, Endpoint, ModelConfig, RouteConfig } from "./types.js";
 
 const COST_TIERS: CostTier[] = ["free", "standard", "premium"];
+const ENDPOINTS: Endpoint[] = ["chat", "embeddings", "audio_speech", "audio_transcriptions"];
 
 export function loadConfig(path = process.env.CONFIG_PATH || "./config.yaml"): AppConfig {
   if (!fs.existsSync(path)) {
@@ -30,6 +31,7 @@ function validateConfig(value: unknown): AppConfig {
       host: stringValue(server.host, "server.host"),
       port: numberValue(server.port, "server.port"),
       request_timeout_ms: numberValue(server.request_timeout_ms, "server.request_timeout_ms"),
+      fallback_max_attempts: server.fallback_max_attempts === undefined ? 2 : numberValue(server.fallback_max_attempts, "server.fallback_max_attempts"),
     },
     models: {},
     routes: {},
@@ -50,7 +52,7 @@ function validateModel(value: unknown, path: string): ModelConfig {
   if (!isRecord(value)) throw new Error(`${path} must be an object`);
 
   const endpoint = stringValue(value.endpoint, `${path}.endpoint`) as Endpoint;
-  if (endpoint !== "chat") throw new Error(`${path}.endpoint must be chat`);
+  if (!ENDPOINTS.includes(endpoint)) throw new Error(`${path}.endpoint is invalid`);
 
   const costTier = stringValue(value.cost_tier, `${path}.cost_tier`) as CostTier;
   if (!COST_TIERS.includes(costTier)) throw new Error(`${path}.cost_tier is invalid`);
@@ -66,7 +68,7 @@ function validateModel(value: unknown, path: string): ModelConfig {
     capabilities: capabilities as ModelConfig["capabilities"],
     cost_tier: costTier,
     price_rank: numberValue(value.price_rank, `${path}.price_rank`),
-    context_window: numberValue(value.context_window, `${path}.context_window`),
+    context_window: value.context_window === undefined ? undefined : numberValue(value.context_window, `${path}.context_window`),
     max_concurrency: value.max_concurrency === undefined ? undefined : numberValue(value.max_concurrency, `${path}.max_concurrency`),
   };
 }
@@ -75,7 +77,7 @@ function validateRoute(value: unknown, path: string): RouteConfig {
   if (!isRecord(value)) throw new Error(`${path} must be an object`);
 
   const endpoint = stringValue(value.endpoint, `${path}.endpoint`) as Endpoint;
-  if (endpoint !== "chat") throw new Error(`${path}.endpoint must be chat`);
+  if (!ENDPOINTS.includes(endpoint)) throw new Error(`${path}.endpoint is invalid`);
 
   const maxCostTier = value.max_cost_tier === undefined ? undefined : (stringValue(value.max_cost_tier, `${path}.max_cost_tier`) as CostTier);
   if (maxCostTier && !COST_TIERS.includes(maxCostTier)) throw new Error(`${path}.max_cost_tier is invalid`);
@@ -86,6 +88,7 @@ function validateRoute(value: unknown, path: string): RouteConfig {
     require_private: value.require_private === undefined ? undefined : booleanValue(value.require_private, `${path}.require_private`),
     allow_external: value.allow_external === undefined ? undefined : booleanValue(value.allow_external, `${path}.allow_external`),
     max_cost_tier: maxCostTier,
+    latency: value.latency === undefined ? undefined : latencyConfig(value.latency, `${path}.latency`),
     optimize: "cheapest",
   };
 }
@@ -116,4 +119,12 @@ function numberRecord(value: unknown, path: string): Record<string, number> {
     result[key] = numberValue(raw, `${path}.${key}`);
   }
   return result;
+}
+
+function latencyConfig(value: unknown, path: string) {
+  if (!isRecord(value)) throw new Error(`${path} must be an object`);
+  return {
+    network_p95_ms_max: value.network_p95_ms_max === undefined ? undefined : numberValue(value.network_p95_ms_max, `${path}.network_p95_ms_max`),
+    first_token_p95_ms_max: value.first_token_p95_ms_max === undefined ? undefined : numberValue(value.first_token_p95_ms_max, `${path}.first_token_p95_ms_max`),
+  };
 }
