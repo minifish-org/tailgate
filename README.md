@@ -101,26 +101,21 @@ Important fields:
 - `models.*.upstream_model`: model name sent to the provider.
 - `models.*.api_key_env`: environment variable containing that provider key.
 - `models.*.endpoint`: `chat`, `embeddings`, `audio_speech`, or `audio_transcriptions`.
-- `models.*.capabilities`: simple capability tags used by auto routes.
 - `models.*.max_concurrency`: auto routes skip the model when busy.
 - `routing.latency`: global threshold filters for built-in routes.
 
 Recommended route meanings:
 
 - `private/chat`: private chat only.
-- `private/coding`: private coding only.
-- `private/reasoning`: private reasoning only.
 - `private/embedding`: private embeddings only.
 - `private/tts`: private TTS only.
 - `private/asr`: private ASR only.
 - `auto/chat`: automatic chat, local or external.
-- `auto/coding`: automatic coding, local or external.
-- `auto/reasoning`: automatic reasoning, local or external.
 - `auto/embedding`: automatic embeddings, local or external.
 - `auto/tts`: automatic TTS, local or external.
 - `auto/asr`: automatic ASR, local or external.
 
-Auto routing uses hard filtering, then cheapest selection by `price_rank`. Ties use lower network latency.
+Auto routing uses hard filtering, then the cheapest dynamic OpenRouter price when available. Without dynamic pricing, it uses the simple built-in provider order: local, DeepSeek, then OpenRouter. Ties use lower network latency.
 
 ## OpenRouter Sync
 
@@ -160,15 +155,14 @@ Pricing conversion:
 - `prompt_per_1m = prompt * 1_000_000`
 - `completion_per_1m = completion * 1_000_000`
 - `blended_per_1m = prompt_per_1m * 0.4 + completion_per_1m * 0.6`
-- zero prompt and completion means `free`, `price_rank=0`
-- standard rank is `round(blended_per_1m * 100)`
-- premium rank is `round(blended_per_1m * 100) + 10000`
+- zero prompt and completion means free
+- runtime ranking uses the blended price when OpenRouter metadata is available
 
 For configured OpenRouter models, sync updates runtime metadata used by routing:
 
 - context window
 - cost tier
-- price rank
+- price ranking
 - prompt/completion/request/image prices
 - supported parameters
 - OpenRouter display name and created timestamp
@@ -185,7 +179,7 @@ Example:
 deepseek/deepseek-chat -> openrouter/deepseek-deepseek-chat
 ```
 
-Capability inference is conservative. Virtual models get `general: 2`; supported parameters may add `tool_calling`, `structured_output`, or `reasoning` hints. tailgate does not infer `coding: 2`.
+Capability inference is conservative. Supported parameters may add metadata hints such as `tool_calling`, `structured_output`, or `reasoning`; built-in routing does not require capability configuration.
 
 ## Running Locally
 
@@ -296,15 +290,6 @@ curl -s "$TAILGATE_URL/chat/completions" \
   -H "Authorization: Bearer $ROUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"auto/chat","messages":[{"role":"user","content":"Write one short TypeScript tip."}]}'
-```
-
-Chat coding auto:
-
-```bash
-curl -s "$TAILGATE_URL/chat/completions" \
-  -H "Authorization: Bearer $ROUTER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"auto/coding","messages":[{"role":"user","content":"Explain a Promise in one sentence."}]}'
 ```
 
 Streaming chat:

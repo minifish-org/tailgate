@@ -49,10 +49,8 @@ function validateModel(value: unknown, path: string): ModelConfig {
   const endpoint = stringValue(value.endpoint, `${path}.endpoint`) as Endpoint;
   if (!ENDPOINTS.includes(endpoint)) throw new Error(`${path}.endpoint is invalid`);
 
-  const costTier = stringValue(value.cost_tier, `${path}.cost_tier`) as CostTier;
-  if (!COST_TIERS.includes(costTier)) throw new Error(`${path}.cost_tier is invalid`);
-
-  const capabilities = isRecord(value.capabilities) ? value.capabilities : {};
+  const costTier = value.cost_tier === undefined ? undefined : (stringValue(value.cost_tier, `${path}.cost_tier`) as CostTier);
+  if (costTier && !COST_TIERS.includes(costTier)) throw new Error(`${path}.cost_tier is invalid`);
 
   return {
     provider: stringValue(value.provider, `${path}.provider`),
@@ -60,9 +58,8 @@ function validateModel(value: unknown, path: string): ModelConfig {
     base_url: stringValue(value.base_url, `${path}.base_url`).replace(/\/+$/, ""),
     api_key_env: stringValue(value.api_key_env, `${path}.api_key_env`),
     endpoint,
-    capabilities: capabilities as ModelConfig["capabilities"],
     cost_tier: costTier,
-    price_rank: numberValue(value.price_rank, `${path}.price_rank`),
+    price_rank: value.price_rank === undefined ? undefined : numberValue(value.price_rank, `${path}.price_rank`),
     context_window: value.context_window === undefined ? undefined : numberValue(value.context_window, `${path}.context_window`),
     max_concurrency: value.max_concurrency === undefined ? undefined : numberValue(value.max_concurrency, `${path}.max_concurrency`),
     supported_parameters: value.supported_parameters === undefined ? undefined : stringArray(value.supported_parameters, `${path}.supported_parameters`),
@@ -115,27 +112,22 @@ function validateRouting(value: unknown): RoutingConfig {
 
 function builtinRoutes(routing: RoutingConfig): Record<string, RouteConfig> {
   const latency = routing.latency;
-  const route = (endpoint: Endpoint, capability: string, privateOnly: boolean): RouteConfig => ({
+  const route = (endpoint: Endpoint, privateOnly: boolean): RouteConfig => ({
     endpoint,
-    required_capability: capability,
     require_private: privateOnly || undefined,
     latency,
   });
 
   const routes: Record<string, RouteConfig> = {
-    "private/chat": route("chat", "general", true),
-    "private/coding": route("chat", "coding", true),
-    "private/reasoning": route("chat", "reasoning", true),
-    "private/embedding": route("embeddings", "embedding", true),
-    "private/tts": route("audio_speech", "tts", true),
-    "private/asr": route("audio_transcriptions", "asr", true),
+    "private/chat": route("chat", true),
+    "private/embedding": route("embeddings", true),
+    "private/tts": route("audio_speech", true),
+    "private/asr": route("audio_transcriptions", true),
 
-    "auto/chat": route("chat", "general", false),
-    "auto/coding": route("chat", "coding", false),
-    "auto/reasoning": route("chat", "reasoning", false),
-    "auto/embedding": route("embeddings", "embedding", false),
-    "auto/tts": route("audio_speech", "tts", false),
-    "auto/asr": route("audio_transcriptions", "asr", false),
+    "auto/chat": route("chat", false),
+    "auto/embedding": route("embeddings", false),
+    "auto/tts": route("audio_speech", false),
+    "auto/asr": route("audio_transcriptions", false),
   };
   return routes;
 }

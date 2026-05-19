@@ -2,7 +2,7 @@ import { GatewayError, messageFromUnknown } from "./errors.js";
 import { HealthRegistry } from "./health.js";
 import { logger } from "./logger.js";
 import { parseOpenRouterPricing } from "./pricing.js";
-import { AppConfig, ModelCapabilities, ModelCatalog, ModelConfig, RuntimeModelMetadata, SelectedModel } from "./types.js";
+import { AppConfig, ModelCatalog, ModelConfig, RuntimeModelMetadata, SelectedModel } from "./types.js";
 
 interface OpenRouterModel {
   id: string;
@@ -199,18 +199,7 @@ function effectiveModel(model: ModelConfig, metadata?: RuntimeModelMetadata): Mo
     cost_tier: metadata.dynamic_cost_tier ?? model.cost_tier,
     price_rank: metadata.dynamic_price_rank ?? model.price_rank,
     supported_parameters: metadata.supported_parameters ?? model.supported_parameters,
-    capabilities: capabilityHints(model.capabilities, metadata.supported_parameters),
   };
-}
-
-function capabilityHints(capabilities: ModelCapabilities, supportedParameters?: string[]): ModelCapabilities {
-  if (!supportedParameters) return capabilities;
-  const result: ModelCapabilities = { ...capabilities };
-  const parameters = new Set(supportedParameters);
-  if (parameters.has("tools")) result.tool_calling = 1;
-  if (parameters.has("response_format") || parameters.has("structured_outputs")) result.structured_output = 1;
-  if (parameters.has("reasoning") || parameters.has("include_reasoning")) result.reasoning = Math.max(typeof result.reasoning === "number" ? result.reasoning : 0, 2);
-  return result;
 }
 
 function metadataFromOpenRouterModel(model: OpenRouterModel, config: AppConfig, syncedAt: string): RuntimeModelMetadata {
@@ -237,7 +226,6 @@ function virtualModelConfig(model: OpenRouterModel, metadata: RuntimeModelMetada
     base_url: "https://openrouter.ai/api/v1",
     api_key_env: "OPENROUTER_API_KEY",
     endpoint: "chat",
-    capabilities: capabilityHints({ general: 2 }, metadata.supported_parameters),
     cost_tier: metadata.dynamic_cost_tier ?? "standard",
     price_rank: metadata.dynamic_price_rank ?? 999_999,
     context_window: metadata.context_window,

@@ -42,15 +42,14 @@ function selectAutoModels(config: AppConfig, health: HealthRegistry, routeName: 
   const entries = catalog?.getModelEntries() ?? Object.entries(config.models).map(([name, model]) => [name, model, undefined] as const);
   const candidates = entries
     .filter(([, model]) => model.endpoint === route.endpoint)
-    .filter(([, model]) => capabilityMatches(model.capabilities, route.required_capability))
-    .filter(([, model]) => !route.require_private || model.capabilities.private === true)
+    .filter(([, model]) => !route.require_private || model.provider === "local")
     .filter(([, model]) => !estimatedTokens || !model.context_window || estimatedTokens <= model.context_window)
     .filter(([modelName]) => {
       const state = health.get(modelName);
       return state.healthy && !state.busy && latencyMatches(state.network_latency_ms, route.latency?.network_p95_ms_max) && latencyMatches(state.first_token_latency_ms, route.latency?.first_token_p95_ms_max);
     })
     .sort((a, b) => {
-      const priceDelta = a[1].price_rank - b[1].price_rank;
+      const priceDelta = modelRank(a[1]) - modelRank(b[1]);
       if (priceDelta !== 0) return priceDelta;
       return (health.get(a[0]).network_latency_ms ?? Number.MAX_SAFE_INTEGER) - (health.get(b[0]).network_latency_ms ?? Number.MAX_SAFE_INTEGER);
     })
@@ -63,12 +62,16 @@ function selectAutoModels(config: AppConfig, health: HealthRegistry, routeName: 
   return candidates;
 }
 
-function capabilityMatches(modelCapabilities: Record<string, unknown>, requiredCapability: string): boolean {
-  return typeof modelCapabilities[requiredCapability] === "number" || modelCapabilities[requiredCapability] === true;
-}
-
 function latencyMatches(actual: number | undefined, max: number | undefined): boolean {
   return max === undefined || actual === undefined || actual <= max;
+}
+
+function modelRank(model: { provider: string; price_rank?: number }): number {
+  if (model.price_rank !== undefined) return model.price_rank;
+  if (model.provider === "local") return 0;
+  if (model.provider === "deepseek") return 10;
+  if (model.provider === "openrouter") return 20;
+  return 100;
 }
 
 function estimateRequestTokens(body?: OpenAIJsonBody): number | undefined {

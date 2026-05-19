@@ -26,10 +26,7 @@ export interface OpenRouterSyncConfig {
 }
 
 export interface ModelCapabilities {
-  general?: number;
-  coding?: number;
   reasoning?: number;
-  private?: boolean;
   [key: string]: number | boolean | undefined;
 }
 
@@ -39,9 +36,8 @@ export interface ModelConfig {
   base_url: string;
   api_key_env: string;
   endpoint: Endpoint;
-  capabilities: ModelCapabilities;
-  cost_tier: CostTier;
-  price_rank: number;
+  cost_tier?: CostTier;
+  price_rank?: number;
   context_window?: number;
   max_concurrency?: number;
   supported_parameters?: string[];
@@ -58,7 +54,6 @@ export interface RoutingConfig {
 
 export interface RouteConfig {
   endpoint: Endpoint;
-  required_capability: string;
   require_private?: boolean;
   latency?: RouteLatencyConfig;
 }

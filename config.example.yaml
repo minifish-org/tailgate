@@ -32,12 +32,6 @@ models:
     base_url: http://macbook-pro:8000/v1
     api_key_env: LOCAL_API_KEY
     endpoint: chat
-    capabilities:
-      general: 1
-      coding: 1
-      private: true
-    cost_tier: free
-    price_rank: 0
     context_window: 8192
     max_concurrency: 1
 
@@ -47,11 +41,6 @@ models:
     base_url: http://macbook-pro:8000/v1
     api_key_env: LOCAL_API_KEY
     endpoint: embeddings
-    capabilities:
-      embedding: 1
-      private: true
-    cost_tier: free
-    price_rank: 0
     max_concurrency: 1
 
   local/tts:
@@ -60,11 +49,6 @@ models:
     base_url: http://macbook-pro:8000/v1
     api_key_env: LOCAL_API_KEY
     endpoint: audio_speech
-    capabilities:
-      tts: 1
-      private: true
-    cost_tier: free
-    price_rank: 0
     max_concurrency: 1
 
   local/asr:
@@ -73,11 +57,6 @@ models:
     base_url: http://macbook-pro:8000/v1
     api_key_env: LOCAL_API_KEY
     endpoint: audio_transcriptions
-    capabilities:
-      asr: 1
-      private: true
-    cost_tier: free
-    price_rank: 0
     max_concurrency: 1
 
   deepseek/chat:
@@ -86,12 +65,6 @@ models:
     base_url: https://api.deepseek.com/v1
     api_key_env: DEEPSEEK_API_KEY
     endpoint: chat
-    capabilities:
-      general: 2
-      coding: 2
-      reasoning: 2
-    cost_tier: standard
-    price_rank: 10
     context_window: 64000
 
   openrouter/default:
@@ -100,12 +73,6 @@ models:
     base_url: https://openrouter.ai/api/v1
     api_key_env: OPENROUTER_API_KEY
     endpoint: chat
-    capabilities:
-      general: 2
-      coding: 2
-      reasoning: 2
-    cost_tier: standard
-    price_rank: 20
     context_window: 128000
 
   openrouter/premium:
@@ -114,16 +81,8 @@ models:
     base_url: https://openrouter.ai/api/v1
     api_key_env: OPENROUTER_API_KEY
     endpoint: chat
-    capabilities:
-      general: 3
-      coding: 3
-      reasoning: 3
-      writing: 3
-    cost_tier: premium
-    price_rank: 100
     context_window: 200000
 
 # Built-in routes are available without declaring routes:
-# private/chat, private/coding, private/reasoning, private/embedding, private/tts, private/asr
-# auto/chat, auto/coding, auto/reasoning, auto/embedding, auto/tts, auto/asr
-#
+# private/chat, private/embedding, private/tts, private/asr
+# auto/chat, auto/embedding, auto/tts, auto/asr
