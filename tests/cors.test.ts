@@ -108,4 +108,20 @@ assert.equal(proxyLikeResponse.status, 200);
 assert.equal(proxyLikeResponse.headers.get("access-control-allow-origin"), "http://127.0.0.1:5173");
 assert.equal(proxyLikeResponse.headers.get("access-control-allow-methods"), "POST, OPTIONS");
 
+const wildcardApp = new Hono();
+wildcardApp.use("/v1/chat/completions", openAICors(["*"]));
+wildcardApp.options("/v1/chat/completions", () => new Response(null, { status: 404 }));
+wildcardApp.post("/v1/chat/completions", () => new Response("ok"));
+
+const wildcardOptionsResponse = await wildcardApp.request("/v1/chat/completions", {
+  method: "OPTIONS",
+  headers: {
+    Origin: "https://example.com",
+    "Access-Control-Request-Method": "POST",
+  },
+});
+
+assert.equal(wildcardOptionsResponse.status, 204);
+assert.equal(wildcardOptionsResponse.headers.get("access-control-allow-origin"), "*");
+
 console.log("cors tests passed");

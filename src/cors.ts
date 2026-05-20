@@ -5,10 +5,11 @@ const ALLOW_HEADERS = "authorization, content-type";
 
 export function openAICors(allowedOrigins: string[]) {
   const allowed = new Set(allowedOrigins);
+  const allowAnyOrigin = allowed.has("*");
 
   return async (c: Context, next: Next) => {
     const origin = c.req.header("origin");
-    const corsOrigin = origin && allowed.has(origin) ? origin : undefined;
+    const corsOrigin = origin && (allowAnyOrigin || allowed.has(origin)) ? (allowAnyOrigin ? "*" : origin) : undefined;
 
     if (c.req.method === "OPTIONS") {
       applyCorsHeaders(c, corsOrigin);

@@ -101,6 +101,8 @@ server:
   cors_allowed_origins:
     - http://127.0.0.1:5173
     - http://localhost:5173
+    # Use "*" only when tailgate is reachable from trusted networks such as Tailscale.
+    # - "*"
 
 sync:
   openrouter: true
