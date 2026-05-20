@@ -7,6 +7,7 @@ export interface ServerConfig {
   port: number;
   request_timeout_ms: number;
   fallback_max_attempts: number;
+  cors_allowed_origins: string[];
 }
 
 export interface OpenRouterCostTierConfig {

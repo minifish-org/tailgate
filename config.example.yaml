@@ -1,6 +1,9 @@
 server:
   host: 0.0.0.0
   port: 11435
+  cors_allowed_origins:
+    - http://127.0.0.1:5173
+    - http://localhost:5173
 
 sync:
   openrouter: false

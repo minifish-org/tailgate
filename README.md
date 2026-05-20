@@ -98,6 +98,9 @@ Minimal shape:
 server:
   host: 100.100.89.60
   port: 11435
+  cors_allowed_origins:
+    - http://127.0.0.1:5173
+    - http://localhost:5173
 
 sync:
   openrouter: true
@@ -119,6 +122,7 @@ Important fields:
 
 - `server.host`: listen address. Use the Lightsail Tailscale IP to bind only to Tailscale.
 - `server.port`: listen port.
+- `server.cors_allowed_origins`: browser origins allowed to call `/v1/chat/completions`.
 - `sync.openrouter`: enable OpenRouter metadata and price sync.
 - `sync.deepseek`: enable DeepSeek price sync.
 - `routing.network_ms_max`: global network latency cutoff for tier routes.

@@ -4,6 +4,7 @@ import { AppConfig, CostTier, DeepSeekSyncConfig, Endpoint, ModelConfig, OpenRou
 
 const COST_TIERS: CostTier[] = ["free", "standard", "premium"];
 const ENDPOINTS: Endpoint[] = ["chat", "embeddings", "audio_speech", "audio_transcriptions"];
+const DEFAULT_CORS_ALLOWED_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"];
 
 export function loadConfig(path = process.env.CONFIG_PATH || "./config.yaml"): AppConfig {
   if (!fs.existsSync(path)) {
@@ -40,6 +41,8 @@ function validateExpandedConfig(value: Record<string, unknown>): AppConfig {
       port: numberValue(server.port, "server.port"),
       request_timeout_ms: numberValue(server.request_timeout_ms, "server.request_timeout_ms"),
       fallback_max_attempts: server.fallback_max_attempts === undefined ? 2 : numberValue(server.fallback_max_attempts, "server.fallback_max_attempts"),
+      cors_allowed_origins:
+        server.cors_allowed_origins === undefined ? DEFAULT_CORS_ALLOWED_ORIGINS : stringArray(server.cors_allowed_origins, "server.cors_allowed_origins"),
     },
     models: {},
     routes: builtinRoutes(validateRouting(value.routing)),
@@ -89,6 +92,7 @@ function expandSimpleConfig(value: Record<string, unknown>): Record<string, unkn
       port: numberValue(server.port, "server.port"),
       request_timeout_ms: numberOrDefault(server.request_timeout_ms, 60_000),
       fallback_max_attempts: numberOrDefault(server.fallback_max_attempts, 2),
+      cors_allowed_origins: server.cors_allowed_origins === undefined ? DEFAULT_CORS_ALLOWED_ORIGINS : stringArray(server.cors_allowed_origins, "server.cors_allowed_origins"),
     },
     openrouter_sync: {
       enabled: booleanOrDefault(sync.openrouter, false),
