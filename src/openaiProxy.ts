@@ -391,9 +391,20 @@ function upstreamBody(requestBody: ParsedRequestBody, upstreamModel: string): Bo
   return formData;
 }
 
-function filteredUpstreamHeaders(headers: Headers): Headers {
+export function filteredUpstreamHeaders(headers: Headers): Headers {
   const result = new Headers();
-  const blocked = new Set(["connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade"]);
+  const blocked = new Set([
+    "connection",
+    "content-encoding",
+    "content-length",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+  ]);
 
   headers.forEach((value, key) => {
     if (!blocked.has(key.toLowerCase())) result.set(key, value);
