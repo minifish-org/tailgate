@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { Hono } from "hono";
 import { createApp } from "../src/app.js";
+import { openAICors } from "../src/cors.js";
 import { AppConfig } from "../src/types.js";
 
 process.env.ROUTER_API_KEY = "test-router-key";
@@ -83,5 +85,27 @@ const postResponse = await app.request("/v1/chat/completions", {
 
 assert.equal(postResponse.status, 401);
 assert.equal(postResponse.headers.get("access-control-allow-origin"), "http://127.0.0.1:5173");
+
+const proxyLikeApp = new Hono();
+proxyLikeApp.use("/v1/chat/completions", openAICors(["http://127.0.0.1:5173"]));
+proxyLikeApp.post("/v1/chat/completions", () => {
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+});
+
+const proxyLikeResponse = await proxyLikeApp.request("/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    Origin: "http://127.0.0.1:5173",
+    "Content-Type": "application/json",
+  },
+  body: "{}",
+});
+
+assert.equal(proxyLikeResponse.status, 200);
+assert.equal(proxyLikeResponse.headers.get("access-control-allow-origin"), "http://127.0.0.1:5173");
+assert.equal(proxyLikeResponse.headers.get("access-control-allow-methods"), "POST, OPTIONS");
 
 console.log("cors tests passed");

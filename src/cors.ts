@@ -8,17 +8,22 @@ export function openAICors(allowedOrigins: string[]) {
 
   return async (c: Context, next: Next) => {
     const origin = c.req.header("origin");
-    if (origin && allowed.has(origin)) {
-      c.header("Access-Control-Allow-Origin", origin);
-      c.header("Vary", "Origin");
-      c.header("Access-Control-Allow-Methods", ALLOW_METHODS);
-      c.header("Access-Control-Allow-Headers", ALLOW_HEADERS);
-    }
+    const corsOrigin = origin && allowed.has(origin) ? origin : undefined;
 
     if (c.req.method === "OPTIONS") {
+      applyCorsHeaders(c, corsOrigin);
       return c.body(null, 204);
     }
 
     await next();
+    applyCorsHeaders(c, corsOrigin);
   };
+}
+
+function applyCorsHeaders(c: Context, origin: string | undefined) {
+  if (!origin) return;
+  c.res.headers.set("Access-Control-Allow-Origin", origin);
+  c.res.headers.set("Vary", "Origin");
+  c.res.headers.set("Access-Control-Allow-Methods", ALLOW_METHODS);
+  c.res.headers.set("Access-Control-Allow-Headers", ALLOW_HEADERS);
 }
