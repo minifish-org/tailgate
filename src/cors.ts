@@ -2,6 +2,7 @@ import { Context, Next } from "hono";
 
 const ALLOW_METHODS = "POST, OPTIONS";
 const ALLOW_HEADERS = "authorization, content-type";
+const ALLOW_PRIVATE_NETWORK = "true";
 
 export function openAICors(allowedOrigins: string[]) {
   const allowed = new Set(allowedOrigins);
@@ -27,4 +28,5 @@ function applyCorsHeaders(c: Context, origin: string | undefined) {
   c.res.headers.set("Vary", "Origin");
   c.res.headers.set("Access-Control-Allow-Methods", ALLOW_METHODS);
   c.res.headers.set("Access-Control-Allow-Headers", ALLOW_HEADERS);
+  c.res.headers.set("Access-Control-Allow-Private-Network", ALLOW_PRIVATE_NETWORK);
 }

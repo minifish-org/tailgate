@@ -73,6 +73,7 @@ assert.equal(optionsResponse.status, 204);
 assert.equal(optionsResponse.headers.get("access-control-allow-origin"), "http://127.0.0.1:5173");
 assert.equal(optionsResponse.headers.get("access-control-allow-methods"), "POST, OPTIONS");
 assert.equal(optionsResponse.headers.get("access-control-allow-headers"), "authorization, content-type");
+assert.equal(optionsResponse.headers.get("access-control-allow-private-network"), "true");
 
 const postResponse = await app.request("/v1/chat/completions", {
   method: "POST",
@@ -123,5 +124,6 @@ const wildcardOptionsResponse = await wildcardApp.request("/v1/chat/completions"
 
 assert.equal(wildcardOptionsResponse.status, 204);
 assert.equal(wildcardOptionsResponse.headers.get("access-control-allow-origin"), "*");
+assert.equal(wildcardOptionsResponse.headers.get("access-control-allow-private-network"), "true");
 
 console.log("cors tests passed");
