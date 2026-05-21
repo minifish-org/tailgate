@@ -123,7 +123,7 @@ const wildcardOptionsResponse = await wildcardApp.request("/v1/chat/completions"
 });
 
 assert.equal(wildcardOptionsResponse.status, 204);
-assert.equal(wildcardOptionsResponse.headers.get("access-control-allow-origin"), "*");
+assert.equal(wildcardOptionsResponse.headers.get("access-control-allow-origin"), "https://example.com");
 assert.equal(wildcardOptionsResponse.headers.get("access-control-allow-private-network"), "true");
 
 console.log("cors tests passed");

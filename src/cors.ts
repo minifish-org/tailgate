@@ -10,7 +10,7 @@ export function openAICors(allowedOrigins: string[]) {
 
   return async (c: Context, next: Next) => {
     const origin = c.req.header("origin");
-    const corsOrigin = origin && (allowAnyOrigin || allowed.has(origin)) ? (allowAnyOrigin ? "*" : origin) : undefined;
+    const corsOrigin = origin && (allowAnyOrigin || allowed.has(origin)) ? origin : undefined;
 
     if (c.req.method === "OPTIONS") {
       applyCorsHeaders(c, corsOrigin);
