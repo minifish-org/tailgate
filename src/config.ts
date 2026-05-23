@@ -45,14 +45,16 @@ function validateExpandedConfig(value: Record<string, unknown>): AppConfig {
         server.cors_allowed_origins === undefined ? DEFAULT_CORS_ALLOWED_ORIGINS : stringArray(server.cors_allowed_origins, "server.cors_allowed_origins"),
     },
     models: {},
+    model_order: {},
     routes: builtinRoutes(validateRouting(value.routing)),
     routing: validateRouting(value.routing),
     openrouter_sync: validateOpenRouterSync(value.openrouter_sync),
     deepseek_sync: validateDeepSeekSync(value.deepseek_sync),
   };
 
-  for (const [name, rawModel] of Object.entries(models)) {
+  for (const [index, [name, rawModel]] of Object.entries(models).entries()) {
     appConfig.models[name] = validateModel(rawModel, `models.${name}`);
+    appConfig.model_order[name] = index;
   }
 
   return appConfig;

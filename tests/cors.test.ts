@@ -15,6 +15,7 @@ const config: AppConfig = {
     cors_allowed_origins: ["http://127.0.0.1:5173", "http://localhost:5173"],
   },
   models: {},
+  model_order: {},
   routes: {},
   routing: {},
   openrouter_sync: {

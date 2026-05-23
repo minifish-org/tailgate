@@ -65,6 +65,7 @@ export interface RouteConfig {
 export interface AppConfig {
   server: ServerConfig;
   models: Record<string, ModelConfig>;
+  model_order: Record<string, number>;
   routes: Record<string, RouteConfig>;
   routing: RoutingConfig;
   openrouter_sync: OpenRouterSyncConfig;

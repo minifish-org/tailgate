@@ -148,6 +148,8 @@ Recommended route meanings:
 
 The same price-tier pattern exists for `embedding`, `tts`, and `asr`: `free/embedding`, `standard/embedding`, `premium/embedding`, and so on. Tier routing uses hard filtering, then provider price when available. Without dynamic pricing, tailgate treats local as `free`, DeepSeek as `standard`, and most OpenRouter models as `standard` unless dynamic sync or the model ID marks them differently.
 
+When multiple candidates have the same price ranking, tailgate uses the model order from config as the tiebreaker. In the simplified config, DeepSeek is generated before OpenRouter, so `standard/chat` prefers `deepseek/chat` over `openrouter/auto` when they are otherwise tied. If price rankings differ, the cheaper qualified model still wins.
+
 ## Price Sync
 
 tailgate can optionally refresh runtime price metadata for configured OpenRouter and DeepSeek models.

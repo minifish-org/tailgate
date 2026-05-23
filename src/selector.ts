@@ -52,6 +52,8 @@ function selectAutoModels(config: AppConfig, health: HealthRegistry, routeName: 
     .sort((a, b) => {
       const priceDelta = modelRank(a[1]) - modelRank(b[1]);
       if (priceDelta !== 0) return priceDelta;
+      const orderDelta = modelOrder(config, a[0]) - modelOrder(config, b[0]);
+      if (orderDelta !== 0) return orderDelta;
       return (health.get(a[0]).network_latency_ms ?? Number.MAX_SAFE_INTEGER) - (health.get(b[0]).network_latency_ms ?? Number.MAX_SAFE_INTEGER);
     })
     .map(([name, model, metadata]) => ({ name, config: model, metadata }));
@@ -73,6 +75,10 @@ function modelRank(model: { provider: string; price_rank?: number }): number {
   if (model.provider === "deepseek") return 10;
   if (model.provider === "openrouter") return 20;
   return 100;
+}
+
+function modelOrder(config: AppConfig, modelName: string): number {
+  return config.model_order[modelName] ?? Number.MAX_SAFE_INTEGER;
 }
 
 function modelTier(modelName: string, model: ModelConfig): CostTier {
