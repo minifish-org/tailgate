@@ -113,11 +113,12 @@ local:
 
 deepseek:
   model: deepseek-v4-flash
+  premium_model: deepseek-v4-pro
 
 openrouter:
   free_model: openrouter/free
   standard_model: openrouter/auto
-  premium_model: anthropic/claude-sonnet-4
+  premium_model: moonshotai/kimi-k2.6
 ```
 
 Important fields:
@@ -131,10 +132,11 @@ Important fields:
 - `routing.first_token_ms_max`: global first-token latency cutoff for tier routes.
 - `pricing.standard_max_usd_per_1m_tokens`: max blended price still considered standard.
 - `local.base_url`: qwen-local base URL.
-- `deepseek.model`: DeepSeek upstream model name.
+- `deepseek.model`: DeepSeek standard upstream model name.
+- `deepseek.premium_model`: DeepSeek premium upstream model name.
 - `openrouter.free_model`: OpenRouter free-tier model.
 - `openrouter.standard_model`: OpenRouter standard-tier model.
-- `openrouter.premium_model`: OpenRouter premium-tier model.
+- `openrouter.premium_model`: OpenRouter premium fallback model.
 
 Recommended route meanings:
 
@@ -147,6 +149,8 @@ Recommended route meanings:
 - `premium/chat`: select a premium-priced chat model.
 
 The same price-tier pattern exists for `embedding`, `tts`, and `asr`: `free/embedding`, `standard/embedding`, `premium/embedding`, and so on. Tier routing uses hard filtering, then provider price when available. Without dynamic pricing, tailgate treats local as `free`, DeepSeek as `standard`, and most OpenRouter models as `standard` unless dynamic sync or the model ID marks them differently.
+
+With the simplified config, `premium/chat` includes `deepseek/premium` first and then the configured OpenRouter premium fallback. The default DeepSeek premium model is `deepseek-v4-pro`.
 
 When multiple candidates have the same price ranking, tailgate uses the model order from config as the tiebreaker. In the simplified config, DeepSeek is generated before OpenRouter, so `standard/chat` prefers `deepseek/chat` over `openrouter/auto` when they are otherwise tied. If price rankings differ, the cheaper qualified model still wins.
 

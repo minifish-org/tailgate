@@ -77,6 +77,7 @@ function expandSimpleConfig(value: Record<string, unknown>): Record<string, unkn
   const deepseekBaseUrl = stringOrDefault(deepseek.base_url, "https://api.deepseek.com/v1").replace(/\/+$/, "");
   const deepseekApiKeyEnv = stringOrDefault(deepseek.api_key_env, "DEEPSEEK_API_KEY");
   const deepseekModel = stringOrDefault(deepseek.model, "deepseek-v4-flash");
+  const deepseekPremiumModel = stringOrDefault(deepseek.premium_model, "deepseek-v4-pro");
 
   const openrouterBaseUrl = stringOrDefault(openrouter.base_url, "https://openrouter.ai/api/v1").replace(/\/+$/, "");
   const openrouterApiKeyEnv = stringOrDefault(openrouter.api_key_env, "OPENROUTER_API_KEY");
@@ -158,6 +159,15 @@ function expandSimpleConfig(value: Record<string, unknown>): Record<string, unkn
         api_key_env: deepseekApiKeyEnv,
         endpoint: "chat",
         context_window: numberOrDefault(deepseek.context_window, 64_000),
+      },
+      "deepseek/premium": {
+        provider: "deepseek",
+        upstream_model: deepseekPremiumModel,
+        base_url: deepseekBaseUrl,
+        api_key_env: deepseekApiKeyEnv,
+        endpoint: "chat",
+        cost_tier: "premium",
+        context_window: numberOrDefault(deepseek.premium_context_window ?? deepseek.context_window, 64_000),
       },
       "openrouter/auto": {
         provider: "openrouter",

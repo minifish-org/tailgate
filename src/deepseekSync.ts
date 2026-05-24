@@ -151,15 +151,21 @@ function parseDeepSeekPricingPage(html: string): DeepSeekModelPricing[] {
 
 function metadataFromDeepSeekPricing(pricing: DeepSeekModelPricing, config: AppConfig, syncedAt: string): RuntimeModelMetadata {
   const ranked = rankPer1MPricing(pricing.promptPer1M, pricing.completionPer1M, config.deepseek_sync.cost_tiers);
+  const tierOverride = deepSeekTierOverride(pricing.id, ranked.priceRank);
   return {
     context_window: pricing.contextWindow,
     dynamic_price_prompt: pricing.promptPer1M,
     dynamic_price_completion: pricing.completionPer1M,
-    dynamic_cost_tier: ranked.costTier,
-    dynamic_price_rank: ranked.priceRank,
+    dynamic_cost_tier: tierOverride?.cost_tier ?? ranked.costTier,
+    dynamic_price_rank: tierOverride?.price_rank ?? ranked.priceRank,
     provider_model_name: pricing.displayName,
     last_price_sync_at: syncedAt,
   };
+}
+
+function deepSeekTierOverride(modelId: string, priceRank: number) {
+  if (modelId === "deepseek-v4-pro") return { cost_tier: "premium" as const, price_rank: Math.max(priceRank, 10_000) };
+  return undefined;
 }
 
 function pricesAfterLabel(text: string, label: string): number[] {

@@ -33,7 +33,9 @@ deepseek:
   base_url: https://api.deepseek.com/v1
   api_key_env: DEEPSEEK_API_KEY
   model: deepseek-v4-flash
+  premium_model: deepseek-v4-pro
   context_window: 64000
+  premium_context_window: 64000
 
 openrouter:
   base_url: https://openrouter.ai/api/v1

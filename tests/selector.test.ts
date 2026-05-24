@@ -39,15 +39,39 @@ const config: AppConfig = {
       cost_tier: "standard",
       price_rank: 30,
     },
+    "deepseek/premium": {
+      provider: "deepseek",
+      upstream_model: "deepseek-v4-pro",
+      base_url: "https://api.deepseek.com/v1",
+      api_key_env: "DEEPSEEK_API_KEY",
+      endpoint: "chat",
+      cost_tier: "premium",
+      price_rank: 10_000,
+    },
+    "openrouter/premium": {
+      provider: "openrouter",
+      upstream_model: "moonshotai/kimi-k2.6",
+      base_url: "https://openrouter.ai/api/v1",
+      api_key_env: "OPENROUTER_API_KEY",
+      endpoint: "chat",
+      cost_tier: "premium",
+      price_rank: 10_000,
+    },
   },
   model_order: {
     "deepseek/chat": 0,
     "openrouter/auto": 1,
+    "deepseek/premium": 2,
+    "openrouter/premium": 3,
   },
   routes: {
     "standard/chat": {
       endpoint: "chat",
       cost_tier: "standard",
+    },
+    "premium/chat": {
+      endpoint: "chat",
+      cost_tier: "premium",
     },
   },
   routing: {},
@@ -84,5 +108,10 @@ const candidates = resolveAutoCandidates(config, health as any, "standard/chat",
 
 assert.equal(candidates[0]?.name, "deepseek/chat");
 assert.equal(candidates[1]?.name, "openrouter/auto");
+
+const premiumCandidates = resolveAutoCandidates(config, health as any, "premium/chat", "chat");
+
+assert.equal(premiumCandidates[0]?.name, "deepseek/premium");
+assert.equal(premiumCandidates[1]?.name, "openrouter/premium");
 
 console.log("selector tests passed");
