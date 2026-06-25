@@ -12,7 +12,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx tests/cors.test.ts && tsx tests/proxyHeaders.test.ts && tsx tests/selector.test.ts"
+    "test": "tsx tests/cors.test.ts && tsx tests/translationsProxy.test.ts && tsx tests/proxyHeaders.test.ts && tsx tests/selector.test.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.4",

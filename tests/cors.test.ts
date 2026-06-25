@@ -72,9 +72,31 @@ const optionsResponse = await app.request("/v1/chat/completions", {
 
 assert.equal(optionsResponse.status, 204);
 assert.equal(optionsResponse.headers.get("access-control-allow-origin"), "http://127.0.0.1:5173");
-assert.equal(optionsResponse.headers.get("access-control-allow-methods"), "POST, OPTIONS");
+assert.equal(optionsResponse.headers.get("access-control-allow-methods"), "GET, POST, OPTIONS");
 assert.equal(optionsResponse.headers.get("access-control-allow-headers"), "authorization, content-type");
 assert.equal(optionsResponse.headers.get("access-control-allow-private-network"), "true");
+
+for (const { path, method } of [
+  { path: "/v1/models", method: "GET" },
+  { path: "/v1/audio/transcriptions", method: "POST" },
+  { path: "/v1/translations", method: "POST" },
+  { path: "/tailgate/health", method: "GET" },
+]) {
+  const preflightResponse = await app.request(path, {
+    method: "OPTIONS",
+    headers: {
+      Origin: "http://127.0.0.1:5173",
+      "Access-Control-Request-Method": method,
+      "Access-Control-Request-Headers": "authorization,content-type",
+    },
+  });
+
+  assert.equal(preflightResponse.status, 204);
+  assert.equal(preflightResponse.headers.get("access-control-allow-origin"), "http://127.0.0.1:5173");
+  assert.equal(preflightResponse.headers.get("access-control-allow-methods"), "GET, POST, OPTIONS");
+  assert.equal(preflightResponse.headers.get("access-control-allow-headers"), "authorization, content-type");
+  assert.equal(preflightResponse.headers.get("access-control-allow-private-network"), "true");
+}
 
 const postResponse = await app.request("/v1/chat/completions", {
   method: "POST",
@@ -108,7 +130,7 @@ const proxyLikeResponse = await proxyLikeApp.request("/v1/chat/completions", {
 
 assert.equal(proxyLikeResponse.status, 200);
 assert.equal(proxyLikeResponse.headers.get("access-control-allow-origin"), "http://127.0.0.1:5173");
-assert.equal(proxyLikeResponse.headers.get("access-control-allow-methods"), "POST, OPTIONS");
+assert.equal(proxyLikeResponse.headers.get("access-control-allow-methods"), "GET, POST, OPTIONS");
 
 const wildcardApp = new Hono();
 wildcardApp.use("/v1/chat/completions", openAICors(["*"]));

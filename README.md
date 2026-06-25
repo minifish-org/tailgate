@@ -18,6 +18,7 @@ tailgate is not an OpenRouter replacement. OpenRouter handles the public model m
 - `POST /v1/embeddings`
 - `POST /v1/audio/speech`
 - `POST /v1/audio/transcriptions`
+- `POST /v1/translations`
 - streaming chat passthrough
 - local / DeepSeek / OpenRouter providers
 - concrete model IDs and price-tier routes
@@ -52,6 +53,7 @@ Chat: local-llm
 Embedding: local-embedding
 TTS: local-tts
 ASR: local-asr
+Translation: local-translation
 ```
 
 Supported local endpoints:
@@ -60,6 +62,7 @@ Supported local endpoints:
 - `/v1/embeddings`
 - `/v1/audio/speech`
 - `/v1/audio/transcriptions`
+- `/v1/translations`
 
 The local provider has a single serialized worker, so local models should use `max_concurrency: 1`.
 
@@ -125,7 +128,7 @@ Important fields:
 
 - `server.host`: listen address. Use the Lightsail Tailscale IP to bind only to Tailscale.
 - `server.port`: listen port.
-- `server.cors_allowed_origins`: browser origins allowed to call `/v1/chat/completions`.
+- `server.cors_allowed_origins`: browser origins allowed to call tailgate routes. Configure your Cloudflare Pages origin explicitly. The safe default is localhost only; do not use `*` when tailgate is reachable from the public internet.
 - `sync.openrouter`: enable OpenRouter metadata and price sync.
 - `sync.deepseek`: enable DeepSeek price sync.
 - `routing.network_ms_max`: global network latency cutoff for tier routes.
@@ -144,11 +147,13 @@ Recommended route meanings:
 - `local/embedding`: concrete local embedding model.
 - `local/tts`: concrete local TTS model.
 - `local/asr`: concrete local ASR model.
+- `local/translation`: concrete local translation model.
+- `free/translation`: select a free translation model.
 - `free/chat`: select a free chat model.
 - `standard/chat`: select a standard-priced chat model.
 - `premium/chat`: select a premium-priced chat model.
 
-The same price-tier pattern exists for `embedding`, `tts`, and `asr`: `free/embedding`, `standard/embedding`, `premium/embedding`, and so on. Tier routing uses hard filtering, then provider price when available. Without dynamic pricing, tailgate treats local as `free`, DeepSeek as `standard`, and most OpenRouter models as `standard` unless dynamic sync or the model ID marks them differently.
+The same price-tier pattern exists for `embedding`, `tts`, `asr`, and `translation`: `free/embedding`, `standard/embedding`, `premium/embedding`, and so on. Tier routing uses hard filtering, then provider price when available. Without dynamic pricing, tailgate treats local as `free`, DeepSeek as `standard`, and most OpenRouter models as `standard` unless dynamic sync or the model ID marks them differently.
 
 With the simplified config, `premium/chat` includes `deepseek/premium` first and then the configured OpenRouter premium fallback. The default DeepSeek premium model is `deepseek-v4-pro`.
 

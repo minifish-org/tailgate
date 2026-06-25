@@ -3,7 +3,7 @@ import YAML from "yaml";
 import { AppConfig, CostTier, DeepSeekSyncConfig, Endpoint, ModelConfig, OpenRouterSyncConfig, RouteConfig, RoutingConfig } from "./types.js";
 
 const COST_TIERS: CostTier[] = ["free", "standard", "premium"];
-const ENDPOINTS: Endpoint[] = ["chat", "embeddings", "audio_speech", "audio_transcriptions"];
+const ENDPOINTS: Endpoint[] = ["chat", "embeddings", "audio_speech", "audio_transcriptions", "translations"];
 const DEFAULT_CORS_ALLOWED_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"];
 
 export function loadConfig(path = process.env.CONFIG_PATH || "./config.yaml"): AppConfig {
@@ -152,6 +152,14 @@ function expandSimpleConfig(value: Record<string, unknown>): Record<string, unkn
         endpoint: "audio_transcriptions",
         max_concurrency: localMaxConcurrency,
       },
+      "local/translation": {
+        provider: "local",
+        upstream_model: stringOrDefault(local.translation_model, "local-translation"),
+        base_url: localBaseUrl,
+        api_key_env: localApiKeyEnv,
+        endpoint: "translations",
+        max_concurrency: localMaxConcurrency,
+      },
       "deepseek/chat": {
         provider: "deepseek",
         upstream_model: deepseekModel,
@@ -293,16 +301,19 @@ function builtinRoutes(routing: RoutingConfig): Record<string, RouteConfig> {
     "free/embedding": route("embeddings", "free"),
     "free/tts": route("audio_speech", "free"),
     "free/asr": route("audio_transcriptions", "free"),
+    "free/translation": route("translations", "free"),
 
     "standard/chat": route("chat", "standard"),
     "standard/embedding": route("embeddings", "standard"),
     "standard/tts": route("audio_speech", "standard"),
     "standard/asr": route("audio_transcriptions", "standard"),
+    "standard/translation": route("translations", "standard"),
 
     "premium/chat": route("chat", "premium"),
     "premium/embedding": route("embeddings", "premium"),
     "premium/tts": route("audio_speech", "premium"),
     "premium/asr": route("audio_transcriptions", "premium"),
+    "premium/translation": route("translations", "premium"),
   };
   return routes;
 }

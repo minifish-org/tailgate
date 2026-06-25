@@ -1,5 +1,5 @@
 export type Provider = "local" | "deepseek" | "openrouter" | string;
-export type Endpoint = "chat" | "embeddings" | "audio_speech" | "audio_transcriptions";
+export type Endpoint = "chat" | "embeddings" | "audio_speech" | "audio_transcriptions" | "translations";
 export type CostTier = "free" | "standard" | "premium";
 
 export interface ServerConfig {

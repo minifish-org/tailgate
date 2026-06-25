@@ -1,6 +1,6 @@
 import { Context, Next } from "hono";
 
-const ALLOW_METHODS = "POST, OPTIONS";
+const ALLOW_METHODS = "GET, POST, OPTIONS";
 const ALLOW_HEADERS = "authorization, content-type";
 const ALLOW_PRIVATE_NETWORK = "true";
 

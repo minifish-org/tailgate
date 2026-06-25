@@ -21,7 +21,7 @@ export function createApp(deps: {
   const { config, health, catalog, openRouterSync, deepSeekSync } = deps;
   const app = new Hono();
 
-  app.use("/v1/chat/completions", openAICors(config.server.cors_allowed_origins));
+  app.use("*", openAICors(config.server.cors_allowed_origins));
   app.use("/v1/*", requireRouterAuth);
   app.use("/tailgate/*", requireRouterAuth);
 
@@ -45,6 +45,11 @@ export function createApp(deps: {
   app.post("/v1/audio/transcriptions", async (c) => {
     const requestId = c.req.header("x-request-id") || randomUUID();
     return proxyOpenAIEndpoint(c, config, health, catalog, requestId, ENDPOINT_SPECS.audio_transcriptions);
+  });
+
+  app.post("/v1/translations", async (c) => {
+    const requestId = c.req.header("x-request-id") || randomUUID();
+    return proxyOpenAIEndpoint(c, config, health, catalog, requestId, ENDPOINT_SPECS.translations);
   });
 
   app.get("/tailgate/health", (c) =>

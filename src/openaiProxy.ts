@@ -30,6 +30,12 @@ export const ENDPOINT_SPECS: Record<Endpoint, ProxyEndpointSpec> = {
     bodyKind: "multipart",
     supportsStream: false,
   },
+  translations: {
+    endpoint: "translations",
+    upstreamPath: "/translations",
+    bodyKind: "json",
+    supportsStream: false,
+  },
 };
 
 export function modelsResponse(config: AppConfig, catalog?: ModelCatalog) {
