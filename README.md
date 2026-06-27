@@ -52,6 +52,7 @@ API key: local
 Chat: local-llm
 Embedding: local-embedding
 TTS: local-tts
+TTS VoiceDesign: local-tts-voice-design
 ASR: local-asr
 Translation: local-translation
 ```
@@ -146,6 +147,7 @@ Recommended route meanings:
 - `local/chat`: concrete local chat model.
 - `local/embedding`: concrete local embedding model.
 - `local/tts`: concrete local TTS model.
+- `local/tts-voice-design`: concrete local TTS VoiceDesign model.
 - `local/asr`: concrete local ASR model.
 - `local/translation`: concrete local translation model.
 - `free/translation`: select a free translation model.
@@ -384,6 +386,16 @@ curl -s "$TAILGATE_URL/audio/speech" \
   -H "Content-Type: application/json" \
   -d '{"model":"local/tts","input":"hello from tailgate","voice":"default","response_format":"wav"}' \
   --output speech.wav
+```
+
+VoiceDesign TTS:
+
+```bash
+curl -s "$TAILGATE_URL/audio/speech" \
+  -H "Authorization: Bearer $ROUTER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"local/tts-voice-design","input":"hello from tailgate","instruct":"natural warm conversational voice","response_format":"wav"}' \
+  --output speech-voice-design.wav
 ```
 
 Free-tier TTS:

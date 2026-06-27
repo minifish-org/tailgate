@@ -25,6 +25,7 @@ local:
   chat_model: local-llm
   embedding_model: local-embedding
   tts_model: local-tts
+  tts_voice_design_model: local-tts-voice-design
   asr_model: local-asr
   translation_model: local-translation
   context_window: 8192
