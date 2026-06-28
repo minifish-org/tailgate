@@ -29,6 +29,10 @@ try {
   assert.equal(config.models["local/translation"]?.upstream_model, "local-translation");
   assert.equal(config.models["local/translation"]?.endpoint, "translations");
 
+  assert.equal(config.models["local/tts-quality"]?.upstream_model, "local-tts-quality");
+  assert.equal(config.models["local/tts-quality"]?.endpoint, "audio_speech");
+  assert.equal(config.models["local/tts-quality"]?.max_concurrency, 1);
+
   assert.equal(
     config.models["local/tts-voice-design"]?.upstream_model,
     "local-tts-voice-design",

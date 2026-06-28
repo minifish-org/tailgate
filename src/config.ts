@@ -73,6 +73,7 @@ function expandSimpleConfig(value: Record<string, unknown>): Record<string, unkn
   const localApiKeyEnv = stringOrDefault(local.api_key_env, "LOCAL_API_KEY");
   const localMaxConcurrency = numberOrDefault(local.max_concurrency, 1);
   const localContextWindow = numberOrDefault(local.context_window, 8192);
+  const localTtsQualityModel = stringOrDefault(local.tts_quality_model, "local-tts-quality");
   const localTtsVoiceDesignModel = stringOrDefault(local.tts_voice_design_model, "local-tts-voice-design");
 
   const deepseekBaseUrl = stringOrDefault(deepseek.base_url, "https://api.deepseek.com/v1").replace(/\/+$/, "");
@@ -140,6 +141,14 @@ function expandSimpleConfig(value: Record<string, unknown>): Record<string, unkn
       "local/tts": {
         provider: "local",
         upstream_model: stringOrDefault(local.tts_model, "local-tts"),
+        base_url: localBaseUrl,
+        api_key_env: localApiKeyEnv,
+        endpoint: "audio_speech",
+        max_concurrency: localMaxConcurrency,
+      },
+      "local/tts-quality": {
+        provider: "local",
+        upstream_model: localTtsQualityModel,
         base_url: localBaseUrl,
         api_key_env: localApiKeyEnv,
         endpoint: "audio_speech",

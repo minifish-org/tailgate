@@ -146,7 +146,8 @@ Recommended route meanings:
 
 - `local/chat`: concrete local chat model.
 - `local/embedding`: concrete local embedding model.
-- `local/tts`: concrete local TTS model.
+- `local/tts`: concrete local default TTS model.
+- `local/tts-quality`: concrete local higher-quality TTS model.
 - `local/tts-voice-design`: concrete local TTS VoiceDesign model.
 - `local/asr`: concrete local ASR model.
 - `local/translation`: concrete local translation model.
@@ -386,6 +387,16 @@ curl -s "$TAILGATE_URL/audio/speech" \
   -H "Content-Type: application/json" \
   -d '{"model":"local/tts","input":"hello from tailgate","voice":"default","response_format":"wav"}' \
   --output speech.wav
+```
+
+Quality TTS:
+
+```bash
+curl -s "$TAILGATE_URL/audio/speech" \
+  -H "Authorization: Bearer $ROUTER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"local/tts-quality","input":"hello from tailgate","voice":"vivian","response_format":"wav"}' \
+  --output speech-quality.wav
 ```
 
 VoiceDesign TTS:
