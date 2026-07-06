@@ -235,24 +235,25 @@ Capability inference is conservative. Supported parameters may add metadata hint
 ## Running Locally
 
 ```bash
-npm install
-npm run dev
+cargo run
 ```
 
 Build and run:
 
 ```bash
-npm run build
-npm start
+cargo build --release
+./target/release/tailgate
 ```
 
-Scripts:
+Compatibility checks while the TypeScript reference implementation remains in the repo:
 
 ```bash
+npm install
 npm run dev
 npm run build
 npm run start
 npm run typecheck
+npm test
 ```
 
 ## Lightsail + Tailscale
@@ -264,8 +265,7 @@ sudo mkdir -p /opt/tailgate
 sudo chown "$USER":"$USER" /opt/tailgate
 git clone https://github.com/minifish-org/tailgate.git /opt/tailgate
 cd /opt/tailgate
-npm install
-npm run build
+cargo build --release
 cp .env.example .env
 cp config.example.yaml config.yaml
 ```
