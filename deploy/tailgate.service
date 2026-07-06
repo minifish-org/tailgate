@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/tailgate
-ExecStart=/usr/bin/node dist/index.js
+ExecStart=/opt/tailgate/target/release/tailgate
 EnvironmentFile=/opt/tailgate/.env
 Restart=always
 RestartSec=3

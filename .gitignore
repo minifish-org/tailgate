@@ -1,5 +1,6 @@
 node_modules/
 dist/
+target/
 .env
 config.yaml
 npm-debug.log*
