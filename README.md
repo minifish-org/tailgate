@@ -262,7 +262,7 @@ On the server:
 ```bash
 sudo mkdir -p /opt/tailgate
 sudo chown "$USER":"$USER" /opt/tailgate
-git clone https://github.com/minifish-org/tailgate.git /opt/tailgate
+git clone git@github.com:minifish-org/tailgate.git /opt/tailgate
 cd /opt/tailgate
 cp .env.example .env
 cp config.example.yaml config.yaml

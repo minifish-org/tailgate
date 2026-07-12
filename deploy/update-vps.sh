@@ -35,7 +35,7 @@ ssh "$target" 'bash -se' <<'REMOTE'
 set -Eeuo pipefail
 
 repo_dir=/opt/tailgate
-repo_url=https://github.com/minifish-org/tailgate.git
+repo_url=git@github.com:minifish-org/tailgate.git
 toolchain=1.92.0
 service=tailgate.service
 unit_path=/etc/systemd/system/tailgate.service
