@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/tailgate
-ExecStart=/opt/tailgate/target/release/tailgate
+ExecStart=/usr/local/lib/tailgate/current/tailgate
 EnvironmentFile=/opt/tailgate/.env
 Restart=always
 RestartSec=3

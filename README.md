@@ -236,14 +236,13 @@ Capability inference is conservative. Supported parameters may add metadata hint
 
 ```bash
 cargo run
+cargo test
 ```
 
-Build and run:
-
-```bash
-cargo build --release
-./target/release/tailgate
-```
+Local development does not produce the VPS deployment binary. Release builds
+are compiled natively on the VPS with pinned Rust `1.92.0` and `--locked` to
+avoid cross-compilation toolchain and ABI differences. Cargo output lives in
+the disposable `build/` directory and `cargo clean` removes it in one pass.
 
 Compatibility checks while the TypeScript reference implementation remains in the repo:
 
@@ -265,7 +264,6 @@ sudo mkdir -p /opt/tailgate
 sudo chown "$USER":"$USER" /opt/tailgate
 git clone https://github.com/minifish-org/tailgate.git /opt/tailgate
 cd /opt/tailgate
-cargo build --release
 cp .env.example .env
 cp config.example.yaml config.yaml
 ```
@@ -284,13 +282,29 @@ For qwen-local via MagicDNS:
 base_url: http://macbook-air-for-home.taila2cd17.ts.net:8000/v1
 ```
 
-## systemd
+From a development machine, update and deploy the VPS in one command:
 
 ```bash
-sudo cp deploy/tailgate.service /etc/systemd/system/tailgate.service
-sudo systemctl daemon-reload
-sudo systemctl enable tailgate
-sudo systemctl restart tailgate
+./deploy/update-vps.sh singapore
+```
+
+Commit and push local changes to `origin/main` before running the command;
+uncommitted local changes are never copied to the VPS.
+
+The update script refuses local changes or a local `main` that differs from
+`origin/main`. It fast-forwards the VPS checkout to that exact revision, builds
+with `cargo build --locked --release`, and installs the binary beneath
+`/usr/local/lib/tailgate/<sha256>/`. The `current` symlink and systemd unit are
+switched atomically before the authenticated health check. Any failure after
+cutover restores the previous symlink and unit and restarts the previous
+release. The installed binary is outside `build/`, so `cargo clean` never
+affects the running service.
+
+## systemd
+
+The update script installs and enables the checked-in unit. To inspect it:
+
+```bash
 sudo systemctl status tailgate
 ```
 

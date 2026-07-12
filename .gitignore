@@ -1,6 +1,11 @@
 node_modules/
 dist/
 target/
+/build/
+bin/
+config-backups/
+config.yaml.bak.*
 .env
 config.yaml
 npm-debug.log*
+__pycache__/
