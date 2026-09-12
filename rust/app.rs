@@ -515,7 +515,12 @@ async fn forward_to_selected(
     state.health.begin_request(&selected.name);
     let request = build_upstream_request(state, selected, spec, request_body, &api_key)?;
     let response = tokio::time::timeout(
-        Duration::from_millis(state.config.server.request_timeout_ms),
+        Duration::from_millis(
+            selected
+                .config
+                .request_timeout_ms
+                .unwrap_or(state.config.server.request_timeout_ms),
+        ),
         request.send(),
     )
     .await

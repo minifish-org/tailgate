@@ -59,6 +59,8 @@ pub struct DeepSeekSyncConfig {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ModelConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_timeout_ms: Option<u64>,
     pub provider: String,
     pub upstream_model: String,
     pub base_url: String,

@@ -15,6 +15,101 @@ use tailgate::health::HealthUpdate;
 use tower::ServiceExt;
 
 #[tokio::test]
+async fn explicit_local_failure_never_calls_cloud_candidate() {
+    std::env::set_var("ROUTER_API_KEY", "test-router-key");
+    std::env::set_var("LOCAL_API_KEY", "local-test-key");
+    std::env::set_var("OPENROUTER_API_KEY", "openrouter-key");
+    let upstream = spawn_fallback_stream_upstream().await;
+    let config = load_config_from_value(json!({
+        "server": {"host": "127.0.0.1", "port": 11435, "request_timeout_ms": 1000, "fallback_max_attempts": 2},
+        "models": {
+            "local/chat": {
+                "provider": "local", "upstream_model": "deepseek-v4-flash",
+                "base_url": upstream.base_url, "api_key_env": "LOCAL_API_KEY",
+                "endpoint": "chat", "cost_tier": "free"
+            },
+            "openrouter/auto": {
+                "provider": "openrouter", "upstream_model": "openrouter/auto",
+                "base_url": upstream.base_url, "api_key_env": "OPENROUTER_API_KEY",
+                "endpoint": "chat", "cost_tier": "free"
+            }
+        }
+    }))
+    .unwrap();
+    let state = AppState::new(config, reqwest::Client::new());
+    mark_healthy(&state, "local/chat");
+    mark_healthy(&state, "openrouter/auto");
+    let response = build_router(state)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/chat/completions")
+                .header(header::AUTHORIZATION, "Bearer test-router-key")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(r#"{"model":"local/chat","messages":[]}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+    let calls = upstream.calls.lock().await;
+    assert_eq!(calls.len(), 1);
+    assert_eq!(
+        calls[0].authorization.as_deref(),
+        Some("Bearer local-test-key")
+    );
+}
+
+#[tokio::test]
+async fn local_timeout_override_allows_slow_upstream_without_changing_global_timeout() {
+    std::env::set_var("ROUTER_API_KEY", "test-router-key");
+    std::env::set_var("LOCAL_API_KEY", "local-test-key");
+    let calls = std::sync::Arc::new(tokio::sync::Mutex::new(Vec::<Call>::new()));
+    let upstream = spawn_router(
+        Router::new().route(
+            "/v1/translations",
+            post(|| async {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                Json(json!({"translated_text": "hello"}))
+            }),
+        ),
+        calls,
+    )
+    .await;
+    for (override_timeout, expected) in [
+        (Some(1000), StatusCode::OK),
+        (None, StatusCode::BAD_GATEWAY),
+    ] {
+        let mut config = json!({
+            "server": {"host": "127.0.0.1", "port": 11435, "request_timeout_ms": 10},
+            "local": {"base_url": upstream.base_url, "enabled_capabilities": ["translation"]}
+        });
+        if let Some(timeout) = override_timeout {
+            config["local"]["request_timeout_ms"] = json!(timeout);
+        }
+        let app = build_router(AppState::new(
+            load_config_from_value(config).unwrap(),
+            reqwest::Client::new(),
+        ));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/translations")
+                    .header(header::AUTHORIZATION, "Bearer test-router-key")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        r#"{"model":"local/translation","text":"hello"}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), expected);
+    }
+}
+
+#[tokio::test]
 async fn cors_preflight_and_auth_match_node_behavior() {
     let state = test_state("http://127.0.0.1:1/v1");
     let app = build_router(state);

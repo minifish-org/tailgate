@@ -14,6 +14,10 @@ async fn main() -> Result<()> {
     init_tracing();
 
     let config = load_config()?;
+    if std::env::args().any(|argument| argument == "--check-config") {
+        println!("Configuration valid: {} models", config.models.len());
+        return Ok(());
+    }
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
     let client = reqwest::Client::builder()
         .user_agent("tailgate-rs/0.1.0")

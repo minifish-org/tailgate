@@ -135,7 +135,15 @@ Important fields:
 - `routing.network_ms_max`: global network latency cutoff for tier routes.
 - `routing.first_token_ms_max`: global first-token latency cutoff for tier routes.
 - `pricing.standard_max_usd_per_1m_tokens`: max blended price still considered standard.
-- `local.base_url`: qwen-local base URL.
+- `local.base_url`: local inference service base URL, including `/v1` (qwen-local or local-ai).
+- `local.enabled_capabilities`: optional list of `chat`, `embedding`, `tts`, `tts-quality`, `tts-voice-design`, `asr`, and `translation`. Omit it to retain all legacy capabilities; an empty list disables all local models. Disabled models are excluded from the catalog and route candidates.
+- `local.request_timeout_ms`: optional positive local upstream response timeout. It overrides the global timeout only for local models. Expanded model configurations also accept `request_timeout_ms`; omission retains the global default. The upstream service must enforce its own execution deadline for streamed response bodies.
+
+Validate a candidate configuration without opening a listener or starting provider sync:
+
+```sh
+CONFIG_PATH=/path/to/config.yaml tailgate --check-config
+```
 - `deepseek.model`: DeepSeek standard upstream model name.
 - `deepseek.premium_model`: DeepSeek premium upstream model name.
 - `openrouter.free_model`: OpenRouter free-tier model.

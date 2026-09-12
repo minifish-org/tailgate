@@ -9,6 +9,49 @@ use tailgate::types::{
 };
 
 #[test]
+fn local_capability_filter_and_timeout_leave_cloud_models_unchanged() {
+    let config = tailgate::config::load_config_from_value(serde_json::json!({
+        "server": {"host": "127.0.0.1", "port": 11435, "request_timeout_ms": 60000},
+        "local": {
+            "enabled_capabilities": ["chat", "embedding", "tts", "asr", "translation"],
+            "request_timeout_ms": 390000
+        }
+    }))
+    .unwrap();
+    assert!(!config.models.contains_key("local/tts-quality"));
+    assert!(!config.models.contains_key("local/tts-voice-design"));
+    for (name, model) in &config.models {
+        if name.starts_with("local/") {
+            assert_eq!(model.request_timeout_ms, Some(390000));
+        } else {
+            assert_eq!(model.request_timeout_ms, None);
+        }
+    }
+    assert_eq!(config.server.request_timeout_ms, 60000);
+    assert_eq!(
+        config
+            .models
+            .keys()
+            .filter(|name| name.starts_with("local/"))
+            .count(),
+        5
+    );
+}
+
+#[test]
+fn local_capability_typo_and_zero_timeout_are_rejected() {
+    for local in [
+        serde_json::json!({"enabled_capabilities": ["speech"]}),
+        serde_json::json!({"request_timeout_ms": 0}),
+    ] {
+        assert!(tailgate::config::load_config_from_value(serde_json::json!({
+            "server": {"host": "127.0.0.1", "port": 11435}, "local": local
+        }))
+        .is_err());
+    }
+}
+
+#[test]
 fn simple_config_expands_local_audio_translation_and_voice_models() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("config.yaml");
@@ -106,6 +149,7 @@ fn selector_config() -> AppConfig {
             (
                 "deepseek/chat",
                 ModelConfig {
+                    request_timeout_ms: None,
                     provider: "deepseek".into(),
                     upstream_model: "deepseek-v4-flash".into(),
                     base_url: "https://api.deepseek.com/v1".into(),
@@ -121,6 +165,7 @@ fn selector_config() -> AppConfig {
             (
                 "openrouter/auto",
                 ModelConfig {
+                    request_timeout_ms: None,
                     provider: "openrouter".into(),
                     upstream_model: "openrouter/auto".into(),
                     base_url: "https://openrouter.ai/api/v1".into(),
@@ -136,6 +181,7 @@ fn selector_config() -> AppConfig {
             (
                 "deepseek/premium",
                 ModelConfig {
+                    request_timeout_ms: None,
                     provider: "deepseek".into(),
                     upstream_model: "deepseek-v4-pro".into(),
                     base_url: "https://api.deepseek.com/v1".into(),
@@ -151,6 +197,7 @@ fn selector_config() -> AppConfig {
             (
                 "openrouter/premium",
                 ModelConfig {
+                    request_timeout_ms: None,
                     provider: "openrouter".into(),
                     upstream_model: "moonshotai/kimi-k2.6".into(),
                     base_url: "https://openrouter.ai/api/v1".into(),

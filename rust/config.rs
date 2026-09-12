@@ -27,7 +27,58 @@ pub fn load_config_from_path(path: impl AsRef<Path>) -> Result<AppConfig> {
 pub fn load_config_from_value(value: Value) -> Result<AppConfig> {
     let object = as_object(&value, "Config")?;
     if object.get("models").and_then(Value::as_object).is_none() {
-        return validate_expanded_config(expand_simple_config(object)?);
+        let mut expanded = expand_simple_config(object)?;
+        if let Some(local) = object.get("local").and_then(Value::as_object) {
+            let allowed = [
+                "chat",
+                "embedding",
+                "tts",
+                "tts-quality",
+                "tts-voice-design",
+                "asr",
+                "translation",
+            ];
+            let capabilities = match local.get("enabled_capabilities") {
+                None => None,
+                Some(value) => {
+                    let values = string_array(Some(value), "local.enabled_capabilities")?;
+                    if values.iter().any(|item| !allowed.contains(&item.as_str())) {
+                        return Err(anyhow!(
+                            "local.enabled_capabilities contains an unknown capability"
+                        ));
+                    }
+                    Some(values)
+                }
+            };
+            let timeout =
+                optional_number(local.get("request_timeout_ms"), "local.request_timeout_ms")?;
+            if timeout == Some(0) {
+                return Err(anyhow!("local.request_timeout_ms must be positive"));
+            }
+            let models = expanded
+                .get_mut("models")
+                .and_then(Value::as_object_mut)
+                .unwrap();
+            models.retain(
+                |name, _| match (name.strip_prefix("local/"), &capabilities) {
+                    (Some(capability), Some(enabled)) => {
+                        enabled.iter().any(|item| item == capability)
+                    }
+                    _ => true,
+                },
+            );
+            if let Some(timeout) = timeout {
+                for (name, model) in models.iter_mut() {
+                    if name.starts_with("local/") {
+                        model
+                            .as_object_mut()
+                            .unwrap()
+                            .insert("request_timeout_ms".into(), json!(timeout));
+                    }
+                }
+            }
+        }
+        return validate_expanded_config(expanded);
     }
     validate_expanded_config(value)
 }
@@ -366,6 +417,16 @@ fn validate_model(value: &Value, path: &str) -> Result<ModelConfig> {
         }
     }
     Ok(ModelConfig {
+        request_timeout_ms: {
+            let timeout = optional_number(
+                object.get("request_timeout_ms"),
+                &format!("{path}.request_timeout_ms"),
+            )?;
+            if timeout == Some(0) {
+                return Err(anyhow!("{path}.request_timeout_ms must be positive"));
+            }
+            timeout
+        },
         provider: string_value(object.get("provider"), &format!("{path}.provider"))?,
         upstream_model: string_value(
             object.get("upstream_model"),

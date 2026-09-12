@@ -433,6 +433,7 @@ fn openrouter_tier_override(model_id: &str) -> Option<(&'static str, i64)> {
 
 fn virtual_model_config(model: &OpenRouterModel, metadata: &RuntimeModelMetadata) -> ModelConfig {
     ModelConfig {
+        request_timeout_ms: None,
         provider: "openrouter".to_string(),
         upstream_model: model.id.clone(),
         base_url: "https://openrouter.ai/api/v1".to_string(),
