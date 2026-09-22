@@ -1,5 +1,5 @@
 server:
-  host: 0.0.0.0
+  host: 127.0.0.1
   port: 11435
   cors_allowed_origins:
     - http://127.0.0.1:5173
@@ -20,9 +20,10 @@ pricing:
   standard_max_usd_per_1m_tokens: 2
 
 local:
-  base_url: http://macbook-pro:8000/v1
+  base_url: http://127.0.0.1:8000/v1
   # Omit to preserve all legacy local capabilities. An empty list disables all.
-  # enabled_capabilities: [chat, embedding, tts, asr, translation]
+  enabled_capabilities: [chat]
+  # Add other capabilities only when supported by your upstream.
   # Optional local-only upstream response timeout; cloud models keep the global timeout.
   # request_timeout_ms: 390000
   api_key_env: LOCAL_API_KEY

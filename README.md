@@ -2,9 +2,11 @@
 
 tailgate is a personal OpenAI-compatible AI gateway. It gives Codex, Cursor, OpenAI SDK clients, and local agents one private `base_url` while keeping provider keys on your server.
 
-It is designed for an always-on AWS Lightsail Singapore server inside a Tailscale network. It unifies:
+It runs on a private server or a local machine; Tailscale is one way to connect
+remote clients and inference hosts. The supported runtime is Rust (`rust/`);
+`src/` is the older TypeScript reference implementation. It unifies:
 
-- local `qwen-local` over Tailscale
+- local OpenAI-compatible inference, including local-ai and qwen-local
 - DeepSeek
 - OpenRouter
 - future OpenAI-compatible providers
@@ -42,12 +44,12 @@ tailgate validates `Authorization: Bearer <ROUTER_API_KEY>`, selects a concrete 
 
 Provider keys are never sent by clients and are not logged.
 
-## Local qwen-local
+## Local inference
 
 Expected local service:
 
 ```text
-Base URL: http://<mac-tailscale-host>:8000/v1
+Base URL: http://127.0.0.1:8000/v1
 API key: local
 Chat: local-llm
 Embedding: local-embedding
@@ -100,7 +102,7 @@ Minimal shape:
 
 ```yaml
 server:
-  host: 100.100.89.60
+  host: 127.0.0.1
   port: 11435
   cors_allowed_origins:
     - http://127.0.0.1:5173
@@ -113,7 +115,7 @@ sync:
   deepseek: true
 
 local:
-  base_url: http://macbook-air-for-home.taila2cd17.ts.net:8000/v1
+  base_url: http://inference-host:8000/v1
 
 deepseek:
   model: deepseek-v4-flash
@@ -243,8 +245,15 @@ Capability inference is conservative. Supported parameters may add metadata hint
 ## Running Locally
 
 ```bash
-cargo run
-cargo test
+git clone https://github.com/minifish-org/tailgate.git
+cd tailgate
+cp .env.example .env
+cp config.example.yaml config.yaml
+# Edit .env: generate a private ROUTER_API_KEY, e.g. with openssl rand -hex 32.
+# Edit config.yaml: set local.chat_model to your upstream model ID.
+# Enable only capabilities your upstream actually supports.
+cargo run --locked -- --check-config
+cargo run --locked
 ```
 
 Local development does not produce the VPS deployment binary. Release builds
@@ -252,10 +261,20 @@ are compiled natively on the VPS with pinned Rust `1.92.0` and `--locked` to
 avoid cross-compilation toolchain and ABI differences. Cargo output lives in
 the disposable `build/` directory and `cargo clean` removes it in one pass.
 
-Compatibility checks while the TypeScript reference implementation remains in the repo:
+Offline Rust and deployment checks:
 
 ```bash
-npm install
+cargo fmt --all -- --check
+cargo test --locked --all-targets
+cargo clippy --locked --all-targets -- -D warnings
+python3 -m unittest discover -s deploy -p "test_*.py"
+```
+
+The TypeScript implementation is retained for reference and compatibility tests;
+it is not the supported deployment entry point. Its checks are:
+
+```bash
+npm ci
 npm run dev
 npm run build
 npm run start
@@ -270,7 +289,7 @@ On the server:
 ```bash
 sudo mkdir -p /opt/tailgate
 sudo chown "$USER":"$USER" /opt/tailgate
-git clone git@github.com:minifish-org/tailgate.git /opt/tailgate
+git clone https://github.com/minifish-org/tailgate.git /opt/tailgate
 cd /opt/tailgate
 cp .env.example .env
 cp config.example.yaml config.yaml
@@ -284,16 +303,16 @@ server:
   port: 11435
 ```
 
-For qwen-local via MagicDNS:
+For a remote inference server via MagicDNS:
 
 ```yaml
-base_url: http://macbook-air-for-home.taila2cd17.ts.net:8000/v1
+base_url: http://inference-host:8000/v1
 ```
 
 From a development machine, update and deploy the VPS in one command:
 
 ```bash
-./deploy/update-vps.sh singapore
+./deploy/update-vps.sh your-vps
 ```
 
 Commit and push local changes to `origin/main` before running the command;
@@ -512,3 +531,10 @@ X-Tailgate-Fallback: true|false
 - No vector database.
 - No queue dashboard.
 - Concrete model requests can still forward even if the model is unhealthy or busy.
+
+## License and support
+
+AGPL-3.0-only; see [LICENSE](LICENSE). This is an experimental self-hosted
+project. Provider accounts, upstream model availability and inference hardware
+are supplied by the operator. Example model IDs are configuration examples,
+not a promise of current provider availability.

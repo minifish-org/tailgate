@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  printf 'usage: %s [SSH_TARGET]\n' "$0" >&2
+  printf 'usage: %s SSH_TARGET\n' "$0" >&2
   exit 2
 }
 
@@ -11,8 +11,8 @@ valid_ssh_target() {
   [[ "$1" =~ ^([A-Za-z0-9][A-Za-z0-9._-]*@)?[A-Za-z0-9][A-Za-z0-9._-]*$ ]]
 }
 
-test "$#" -le 1 || usage
-target=${1:-singapore}
+test "$#" -eq 1 || usage
+target=$1
 valid_ssh_target "$target" || { printf 'error: unsafe SSH target\n' >&2; exit 2; }
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
@@ -35,7 +35,7 @@ ssh "$target" 'bash -se' <<'REMOTE'
 set -Eeuo pipefail
 
 repo_dir=/opt/tailgate
-repo_url=git@github.com:minifish-org/tailgate.git
+repo_url=https://github.com/minifish-org/tailgate.git
 toolchain=1.92.0
 service=tailgate.service
 unit_path=/etc/systemd/system/tailgate.service
